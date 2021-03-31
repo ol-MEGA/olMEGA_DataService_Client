@@ -8,14 +8,19 @@ host = "localhost"
 conditions = False
 
 client = olMEGA_DataService_Client.client(user, password, host, debug = True)
-conditions =  {"subject": "CH04ER05"};
-conditions =  {"subject": "NN07IS04", "name" : "ovd"};
-#conditions =  {"subject": "NN07IS04"};
+#conditions =  {"datachunk" : {"subject": "NN07IS04"}};
+#conditions =  {"questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
+conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
 print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 myDataSet = client.getDataSet("datachunk", conditions)
 print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 #client.downloadFiles("tmp", myDataSet)
 #print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+
+
+
+
 """
 count = 0
 value = client.createNewFeatureValue("PSD")
