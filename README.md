@@ -3,7 +3,7 @@
 Anwendung: siehe Beispiele
 
 Folgende DataSets können mittels "getDataSet()" geladen werden:
-- FeatureSet
+- DataChunk
   enhält: Featurevalues, Files, Questionnaires
 - FileType
   enthält: Feature_Filetypes, Files
@@ -20,31 +20,31 @@ Folgende DataSets können mittels "getDataSet()" geladen werden:
 ## Selektionskriterien
 Als Selektionskriterien ("conditions" in den Beispielen unten) sind alle Felder aus den oben genannten DataSets möglich. Dabei ist die Hierachie entsprechend zu beachten:
 
-### Beispiel "FeatureSet"
+### Beispiel "DataChunk"
 conditions = {"subject": "P1"}
--> es werden alle FeatureSet des Probanden P1 gesucht
+-> es werden alle DataChunks des Probanden P1 gesucht
 
 conditions = {"subject": ["P1", "P2"] }
--> es werden alle FeatureSet der Probanden P1 oder P2 gesucht
+-> es werden alle DataChunks der Probanden P1 oder P2 gesucht
 
-{"subject": "P1", "Featurevalue" : {"name" : "rms"}}
--> es werden alle FeatureSet des Probanden P1 mit den enthaltenen Featurevalues "rms" gesucht
+conditions = {"subject": "P1", "Featurevalue" : {"name" : "rms"}}
+-> es werden alle DataChunks des Probanden P1 mit den enthaltenen Featurevalues "rms" gesucht
 
-{"subject": ["P1", "P2"], "Featurevalue" : {"name" : ["rms", "psd"]}}
--> es werden alle FeatureSet der Probanden P1 oder P2 mit den enthaltenen Featurevalues "rms" oder "psd" gesucht
+conditions = {"subject": ["P1", "P2"], "Featurevalue" : {"name" : ["rms", "psd"]}}
+-> es werden alle DataChunks der Probanden P1 oder P2 mit den enthaltenen Featurevalues "rms" oder "psd" gesucht
 
 ## Python
-### Beispiel: alle Featureset-Daten laden
+### Beispiel: alle DataChunk-Daten laden
     from olMEGA_DataService_Client import olMEGA_DataService_Client
     client = olMEGA_DataService_Client.client("Mustermann", "12345", "localhost")
-    myDataSet = client.getDataSet("featureset")
+    myDataSet = client.getDataSet("datachunk")
     client.close()
 
-### Beispiel: alle Featureset-Daten von einem Probanden laden
+### Beispiel: alle DataChunk-Daten von einem Probanden laden
     from olMEGA_DataService_Client import olMEGA_DataService_Client
     client = olMEGA_DataService_Client.client("Mustermann", "12345", "localhost")
     conditions = {"subject": "P1"};
-    myDataSet = client.getDataSet("featureset", conditions)
+    myDataSet = client.getDataSet("datachunk", conditions)
     client.close()
 
 ### Beispiel: Questinare-XMLs hochladen (im Verzeichnis "./Questinares" mit jeweils ein Ordner pro Proband)
@@ -61,14 +61,14 @@ conditions = {"subject": ["P1", "P2"] }
     from olMEGA_DataService_Client import olMEGA_DataService_Client
     client = olMEGA_DataService_Client.client("Mustermann", "12345", "localhost")
     conditions = {"subject": "P1"};
-    myDataSet = client.getDataSet("featureset", conditions)
+    myDataSet = client.getDataSet("datachunk", conditions)
     client.downloadFiles("./out", myDataSet)
     client.close()
 
 ### Beispiel: neues Feature für einen Probanden erstellen und speichern
     from olMEGA_DataService_Client import olMEGA_DataService_Client
     conditions = {"subject": "P1"};
-    myDataSet = client.getDataSet("featureset", conditions)
+    myDataSet = client.getDataSet("datachunk", conditions)
     newValue = client.createNewFeatureValue("PSD")
     newValue["valueleft"] = 0.42
     newValue["valueright"] = 0.21
@@ -79,24 +79,24 @@ conditions = {"subject": ["P1", "P2"] }
 ### Beispiel: Werte eines Features für einen Probanden ändern und speichern
     from olMEGA_DataService_Client import olMEGA_DataService_Client
     conditions = {"subject": "P1"};
-    myDataSet = client.getDataSet("featureset", conditions)
+    myDataSet = client.getDataSet("datachunk", conditions)
     myDataSet[0]["featurevalue"][0]["valueleft"] = 0.42
     client.updateDataSet(myDataSet)
     client.close()
 
 ## Matlab
-### Beispiel: alle Featureset-Daten laden
+### Beispiel: alle DataChunk-Daten laden
     myMod = py.importlib.import_module('olMEGA_DataService_Client');
     pyObj = py.olMEGA_DataService_Client.olMEGA_DataService_Client.client('Mustermann', '12345', "localhost", 1);
-    myDataSet = jsondecode(char(pyObj.getDataSet("featureset")));
+    myDataSet = jsondecode(char(pyObj.getDataSet("datachunk")));
     pyObj.close();
 
-### Beispiel: alle Featureset-Daten von einem Probanden laden
+### Beispiel: alle DataChunk-Daten von einem Probanden laden
     myMod = py.importlib.import_module('olMEGA_DataService_Client');
     pyObj = py.olMEGA_DataService_Client.olMEGA_DataService_Client.client('Mustermann', '12345', "localhost", 1);
     Conditions = struct();
     Conditions.Subject = {'P1'};
-    myDataSet = jsondecode(char(pyObj.getDataSet("featureset", jsonencode(Conditions))));
+    myDataSet = jsondecode(char(pyObj.getDataSet("datachunk", jsonencode(Conditions))));
     pyObj.close();
 
 ### Beispiel: Questinare-XMLs hochladen (im Verzeichnis "./Questinares" mit jeweils ein Ordner pro Proband)
@@ -122,7 +122,7 @@ conditions = {"subject": ["P1", "P2"] }
     pyObj = py.olMEGA_DataService_Client.olMEGA_DataService_Client.client('Mustermann', '12345', "localhost", 1);
     Conditions = struct();
     Conditions.subject =  {"P1"};
-    myDataSet = jsondecode(char(pyObj.getDataSet("featureset", jsonencode(Conditions))));
+    myDataSet = jsondecode(char(pyObj.getDataSet("datachunk", jsonencode(Conditions))));
     newValue = jsondecode(char(pyObj.createNewFeatureValue("PSD")));
     newValue.valueleft = .42;
     newValue.valueright = .21;
@@ -133,7 +133,7 @@ conditions = {"subject": ["P1", "P2"] }
 ### Beispiel: Werte eines Features für einen Probanden ändern und speichern
     myMod = py.importlib.import_module('olMEGA_DataService_Client');
     pyObj = py.olMEGA_DataService_Client.olMEGA_DataService_Client.client('Mustermann', '12345', "localhost", 1);
-    myDataSet = jsondecode(char(pyObj.getDataSet("featureset", jsonencode(Conditions))));
+    myDataSet = jsondecode(char(pyObj.getDataSet("datachunk", jsonencode(Conditions))));
     myDataSet(1).featurevalue(1).valueleft = .42
     myDataSet(1).featurevalue(1).valueleft = .21
     pyObj.updateDataSet(jsonencode(matlabData));

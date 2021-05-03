@@ -230,6 +230,19 @@ class client():
                 raise ValueError(response.text)
         print("")
         return True
+    
+    def executeQuery(self, command):
+        data = {"COMMAND" : str(command)}
+        response = self.session.post(self.host + "/executeQuery", auth = self.auth, data = json.dumps(data), headers = {'content-type': 'application/json'}, verify = self.verifySSL)
+        if response.status_code == 200:
+            response = json.loads(response.text)
+            if len(response) > 0:
+                response = response[0]
+                return response
+            else:
+                return {}
+        else:
+            return {}
 
     def deleteFeatureValues(self, dataset):      
         if self.calledByMatlab:

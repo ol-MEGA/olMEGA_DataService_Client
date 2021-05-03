@@ -8,11 +8,14 @@ host = "localhost"
 conditions = False
 
 client = olMEGA_DataService_Client.client(user, password, host, debug = True)
-#conditions =  {"datachunk" : {"subject": "NN07IS04"}};
-#conditions =  {"questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
-conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
+#conditions =  {"subject": "NN07IS04"};
+#conditions =  {"questionnaire": {'answer' : {'answerkey' : '1010102'}}};
+#conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
+
+#conditions =  {'answer' : {'answerkey' : '1010101'}};
 print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 myDataSet = client.getDataSet("datachunk", conditions)
+#myDataSet = client.getDataSet("answer", conditions)
 print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 #client.downloadFiles("tmp", myDataSet)
 #print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
