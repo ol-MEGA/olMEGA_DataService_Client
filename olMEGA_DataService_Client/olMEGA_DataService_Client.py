@@ -237,7 +237,6 @@ class client():
         if response.status_code == 200:
             response = json.loads(response.text)
             if len(response) > 0:
-                response = response[0]
                 return response
             else:
                 return {}
