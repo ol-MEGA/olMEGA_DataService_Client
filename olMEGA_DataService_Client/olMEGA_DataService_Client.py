@@ -201,6 +201,8 @@ class client():
             self.temp_QuestinaresFilesToUpload[subject].append(filename)
         
     def downloadFiles(self, outputFolder, dataset, overwrite = False):
+        if not os.path.isdir(outputFolder):
+            os.mkdir(outputFolder)
         if self.calledByMatlab:
             dataset = json.loads(dataset)
         dataset = json.dumps(dataset)
