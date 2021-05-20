@@ -8,18 +8,6 @@ host = "localhost"
 conditions = False
 
 client = olMEGA_DataService_Client.client(user, password, host, debug = True)
-
-filelist = client.executeQuery('SELECT SUBJECT, FILENAME FROM EMA_datachunk JOIN EMA_file ON EMA_datachunk.ID = EMA_file.DataChunk_id');
-client.downloadFiles("./tmp", filelist, True)
- 
-pass
-
-
-
-
-
-
-
 #conditions =  {"subject": "NN07IS04"};
 #conditions =  {"questionnaire": {'answer' : {'answerkey' : '1010102'}}};
 #conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
