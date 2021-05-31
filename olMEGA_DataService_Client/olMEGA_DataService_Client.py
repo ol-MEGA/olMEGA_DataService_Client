@@ -212,7 +212,7 @@ class client():
             response = self.session.post(self.host + "/exportFiles", auth = self.auth, data = dataset, headers = {'content-type': 'application/json'}, verify = self.verifySSL)
             if response.status_code == 200:
                 dataset = json.dumps({"loadnext" : 1})
-                tempFile = tempfile.NamedTemporaryFile(mode='w')
+                tempFile = tempfile.NamedTemporaryFile(mode='w', delete=False)
                 open(tempFile.name, 'wb').write(response.content)
                 with zipfile.ZipFile(tempFile.name,"r") as zip_ref:
                     zip_ref.extractall(outputFolder)

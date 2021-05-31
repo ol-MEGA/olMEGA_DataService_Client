@@ -11,12 +11,13 @@ client = olMEGA_DataService_Client.client(user, password, host, debug = True)
 #conditions =  {"subject": "NN07IS04"};
 #conditions =  {"questionnaire": {'answer' : {'answerkey' : '1010102'}}};
 #conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
-
 #conditions =  {'answer' : {'answerkey' : '1010101'}};
-print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+
+print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f"))
 myDataSet = client.getDataSet("datachunk", conditions)
+#subject = client.executeQuery("SELECT DISTINCT subject FROM EMA_DataChunk")
 #myDataSet = client.getDataSet("answer", conditions)
-print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f"))
 #client.downloadFiles("tmp", myDataSet)
 #print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 
