@@ -13,7 +13,7 @@ host = "localhost"
 client = olMEGA_DataService_Client.client(user, password, host)
 client.silent = True
 
-pathList = ["/NN07IS04_180611_ks/"]
+pathList = ["./FeatureFiles/"]
 
 subjectOld = ""
 subject = ""
@@ -31,7 +31,7 @@ for path in pathList:
                         subjectOld = subject
                     if not file.lower().startswith("hoersituation-v0"):
                         client.addFileToUpLoad(subject, os.path.join(root, file))
-                client.uploadFiles(overwrite = False)
+                client.uploadFiles(overwrite = True)
             except requests.exceptions.ConnectionError as e:
                 raise e
             except:

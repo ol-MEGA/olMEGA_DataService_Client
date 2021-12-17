@@ -1,5 +1,6 @@
 from olMEGA_DataService_Client import olMEGA_DataService_Client
 from datetime import datetime
+import random
 
 user = "Mustermann"
 password = "12345"
@@ -8,17 +9,31 @@ host = "localhost"
 conditions = False
 
 client = olMEGA_DataService_Client.client(user, password, host, debug = True)
-#conditions =  {"subject": "NN07IS04"};
+
+
+file_dict = client.executeQuery('SELECT Subject, Filename FROM EMA_datachunk \
+        JOIN EMA_file ON EMA_datachunk.ID = EMA_file.DataChunk_id \
+        JOIN EMA_filetype ON EMA_file.FileType_id = EMA_filetype.ID \
+        WHERE Subject = "%s" \
+        AND EMA_datachunk.Start >= "%s" \
+        AND EMA_datachunk.Start <= "%s" \
+        AND EMA_filetype.FileExtension = "%s" ' % ('NN07IS04', '2021-01-01 00:00:00', '2022-01-01 00:00:00', 'psd')) 
+
+client.downloadFiles("./tmp", file_dict, True)
+
+#conditions =  {"subject": "NN07IS04"}
 #conditions =  {"questionnaire": {'answer' : {'answerkey' : '1010102'}}};
 #conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
 #conditions =  {'answer' : {'answerkey' : '1010101'}};
 
-print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f"))
-myDataSet = client.getDataSet("datachunk", conditions)
-#subject = client.executeQuery("SELECT DISTINCT subject FROM EMA_DataChunk")
+
+#print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f"))
+#myDataSet = client.getDataSet("datachunk", conditions)
+myDataSet = client.executeQuery("delete FROM EMA_datachunk")
 #myDataSet = client.getDataSet("answer", conditions)
+print (myDataSet)
 print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f"))
-#client.downloadFiles("tmp", myDataSet)
+#client.downloTrueadFiles("tmp", myDataSet)
 #print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
 
 
@@ -30,15 +45,15 @@ count = 0
 value = client.createNewFeatureValue("PSD")
 
 value["subject"] = "AN05CH11"
-value["value"] = random()
+value["value"] = random.random()
 value["side"] = "r"
 value["isvalid"] = True
 value["start"] = datetime(2020, 1, 1, 0, 0, 0, 0).strftime("%Y-%m-%d %H:%M:%S.%f")
 value["end"] = datetime(2020, 1, 1, 0, 0, 0, 1).strftime("%Y-%m-%d %H:%M:%S.%f")
 
 myDataSet = client.saveFeatureValue(value)
-"""
 
+"""
 #myDataSet[0]["date"] = datetime.datetime(2020, 1, 1, 0, 0, 0, count).strftime("%Y-%m-%d %H:%M:%S.%f")
 
 #for x in range(mFeatureData.shape[0]):

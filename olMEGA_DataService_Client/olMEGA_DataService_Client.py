@@ -124,7 +124,7 @@ class client():
         else:
             response = response.text
         return response
-    
+
     def importFiles(self, FileExtension, filedata, overwrite = False):
         def sendData(data, files):
             if len(data) > 0:
@@ -174,6 +174,63 @@ class client():
                 raise ValueError("Import impossible! Features Files are missing...")        
             elif FileExtension.lower() == ".xml":
                 raise ValueError("Import impossible! Questinares Files are missing...")
+    
+    """
+    def importFiles(self, FileExtension, filedata, overwrite = False):
+        def sendData(data, files):
+            if len(data) > 0:
+                response = False
+                print('.', end = '', flush = True)
+
+                tempFile = tempfile.NamedTemporaryFile(mode='w', delete=True)
+                zipf = zipfile.ZipFile(tempFile.name, 'w', zipfile.ZIP_DEFLATED)
+                for file in files:
+                    zipf.write(file)
+                zipf.close()
+                if FileExtension.lower() == ".feat":
+                    response = self.session.put(self.host + "/importFiles", auth = self.auth, data = {"data": json.dumps(data)}, files = {'zip': open(tempFile.name,'rb')}, verify = self.verifySSL)
+                elif FileExtension.lower() == ".xml":
+                    response = self.session.put(self.host + "/importQuestionaere", auth = self.auth, data = {"data": json.dumps(data)}, files = [tempFile.name], verify = self.verifySSL)
+                tempFile.close()
+                if response and response.status_code == 200:
+                    return 1
+                else:
+                    raise ValueError(response.text)
+            else:
+                return True
+        if type(filedata) is dict and len(filedata) > 0:
+            print('uploading', end = '', flush = True)
+            if FileExtension == ".feat" and overwrite == False:
+                response = self.session.post(self.host + "/exists", auth = self.auth, data = json.dumps(filedata), headers = {'content-type': 'application/json'}, verify = self.verifySSL)
+                if response.status_code == 200:
+                    filedata = json.loads(response.text) 
+            data = {}
+            files = []
+            datasize = 0
+            returnValue = True
+            for subject in filedata.keys():
+                if type(filedata[subject]) is str:
+                    filedata[subject] = [filedata[subject]]
+                for file in filedata[subject]:
+                    _, file_extension = os.path.splitext(file)
+                    if os.path.isfile(file) and file_extension.lower() == FileExtension:
+                        data[str(len(data))] = {"subject": subject , "filename" : os.path.basename(file), "overwrite": overwrite}
+                        files.append(file)
+                        datasize += os.path.getsize(file)
+                        if datasize >= 500000000 or len(files) >= 1000:
+                            returnValue = returnValue and sendData(data, files)
+                            data = {}
+                            files = []
+                            datasize = 0
+            returnValue = returnValue and sendData(data, files)
+            print("")
+            return returnValue
+        else:
+            if FileExtension.lower() == ".feat":
+                raise ValueError("Import impossible! Features Files are missing...")        
+            elif FileExtension.lower() == ".xml":
+                raise ValueError("Import impossible! Questinares Files are missing...")
+    """
                 
     def uploadFiles(self, overwrite = False):
         returnValue = True
@@ -280,4 +337,4 @@ class client():
         else:
             raise ValueError("Dataset is not valid!");
 if __name__ == "__main__":
-    exec(open("../main.py").read())
+    exec(open("../example.py").read())
