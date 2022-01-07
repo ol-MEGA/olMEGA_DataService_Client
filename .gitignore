@@ -1,0 +1,3 @@
+*.pyc
+settings.conf
+.vscode/launch.json
