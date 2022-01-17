@@ -19,6 +19,7 @@ client.silent = True
 #pathList = ["/media/sven/Backup/Work/olMEGA/IHAB_converted_EMA2018/"]
 pathList = ["/media/sven/Backup/Work/olMEGA/tmp"]
 #pathList = ["/home/sven/tmp/EK06DI26_180905_aw/"]
+#pathList = ["/media/bitzer/Samsung_T5/IHAB1_New/"]
 
 subjectOld = ""
 subject = ""
