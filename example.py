@@ -1,7 +1,15 @@
+from gettext import npgettext
 from time import strptime
 from olMEGA_DataService_Client import olMEGA_DataService_Client
 from datetime import datetime, timedelta
 import random
+from operator import itemgetter
+from olMEGA_DataService_Tools import FeatureFile
+from olMEGA_DataService_Tools import acousticweighting as aw
+
+import numpy as np
+import pandas as pd
+import os
 
 user = "Mustermann"
 password = "12345"
@@ -26,6 +34,12 @@ client.downloadFiles("./tmp", file_dict, True)
 =======
 def get_all_participants(db):
         return db.executeQuery('SELECT DISTINCT Subject FROM EMA_datachunk')
+
+def get_all_questionaire_infos (db):
+        sql_query_string = f'SELECT EMA_questionnaire.id, EMA_datachunk.Subject, EMA_questionnaire.SurveyFile FROM EMA_questionnaire INNER JOIN EMA_datachunk ON EMA_questionnaire.DataChunk_id = EMA_datachunk.ID '
+        print (sql_query_string)
+        return db.executeQuery(sql_query_string)
+
 
 def get_all_questionaire_filenames_for_one_subject (db, participent_pseudoname):
         sql_query_string = f'SELECT EMA_questionnaire.id, EMA_questionnaire.SurveyFile FROM EMA_questionnaire INNER JOIN EMA_datachunk ON EMA_questionnaire.DataChunk_id = EMA_datachunk.ID WHERE EMA_datachunk.Subject == "{participent_pseudoname}" '
@@ -68,14 +82,38 @@ def get_filedict_for_chunks(db, chunks, file_extension):
                                 WHERE Subject = "{one_chunk['subject']}"
                                 AND EMA_filetype.FileExtension = "{file_extension}" 
                                 AND EMA_datachunk.ID = "{one_chunk['id']}" '''
-                file_dict.append(db.executeQuery(sql_query_string))
+                one_file_dict = db.executeQuery(sql_query_string)
+                file_dict.append(one_file_dict[0])
 
         return file_dict
-        
+
+def get_data_for_files_in_dict(db, file_dict, keep_files = False):
+        db.downloadFiles("./tmp", file_dict, True)
+        # load all files
+        alldata_stacked = []
+        for one_dict in file_dict:
+                filename = "./tmp/" + one_dict['subject'] + '/' + one_dict['filename']
+                featdata = FeatureFile.load(filename)
+                data = featdata.data
+                alldata_stacked.append(data)
+                if not keep_files:
+                        os.remove(filename)
+                
+        nrofchunks = len(alldata_stacked)
+        size_of_data = alldata_stacked[0].shape
+        alldata = np.stack(alldata_stacked, axis=0).reshape((nrofchunks*size_of_data[0],size_of_data[1]))
+        return alldata, featdata.fs
+
+     
 all_participants = get_all_participants(client)
 one_participant = all_participants[1]['subject']
+
+all_questionaires = get_all_questionaire_infos(client)
+#print(all_questionaires)
+
 filenames = get_all_questionaire_filenames_for_one_subject(client,one_participant)
-questionaire_id = filenames[2]['id']
+questionaire_id = filenames[1]['id']
+survey_filename = all_questionaires[0]['surveyfile']
 #print(questionaire_id)
 time_info = get_questionaire_fillout_time(client,questionaire_id)
 print (time_info)
@@ -84,16 +122,74 @@ chunk = get_chunk_at_time(client, one_participant, time_info)
 print(chunk)
 chunk_start_time = datetime.strptime(chunk[0]['start'],'%Y-%m-%d %H:%M:%S')
 print(chunk_start_time)
-chunks = get_chunks_for_time_interval(client, one_participant,chunk_start_time-timedelta(minutes=5), chunk_start_time)
+pre_analysis_time_in_min = 5
+chunks = get_chunks_for_time_interval(client, one_participant,chunk_start_time-timedelta(minutes=pre_analysis_time_in_min), chunk_start_time)
+
+analysis_is_valid = len(chunks) == pre_analysis_time_in_min
+
 file_dict = get_filedict_for_chunks(client,chunks, 'psd')
 print(file_dict)
-client.downloadFiles("./tmp", file_dict, True)
-file_dict = get_filedict_for_chunks(client,chunks, 'ovd')
+file_dict.sort(key= lambda d: d['filename']) 
 print(file_dict)
 client.downloadFiles("./tmp", file_dict, True)
-client.
+file_dictovd = get_filedict_for_chunks(client,chunks, 'ovd')
+file_dictovd.sort(key= lambda d: d['filename']) 
+print(file_dictovd)
 
-#print(chunks)
+psd_data, fs = get_data_for_files_in_dict(client,file_dict, keep_files=False)
+ovd_data, ovd_fs = get_data_for_files_in_dict(client,file_dictovd)
+
+# Berechnungen in numpy
+
+n = [int(psd_data.shape[1] / 2), int(psd_data.shape[1] / 4)]
+Pxx = psd_data[:, n[0] : n[0] + n[1]]
+Pyy = psd_data[:, n[0] + n[1] : ]                    
+
+nr_of_frames, fft_size = Pxx.shape
+w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,'a','lin')
+meanPSD = (((Pxx+Pyy)*0.5*fs)*w)*0.25 # this works because of broadcasting rules in python
+rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
+rms_psd_5min_all = np.mean(rms_psd)
+
+rms_psd_5min_OV = None
+rms_psd_5min_withoutOV = None
+OVD_percent = np.mean(ovd_data)
+if (OVD_percent>0):
+        rms_psd_5min_OV = np.mean(rms_psd[ovd_data[:,0] == 1])
+if (OVD_percent<1):
+        rms_psd_5min_withoutOV = np.mean(rms_psd[ovd_data[:,0] != 1])
+
+print(analysis_is_valid)
+
+df = pd.DataFrame(columns=["subject", "Survey-Filename", "Time", "Correction Time", "Samplerate",
+                           "is valid (5min)", "OVD percent (5min)","RMS(a) overall (5min)",
+                           "RMS(a) OV only (5min)","RMS(a) without OV (5min)" ] )
+
+df[["Samplerate","is valid (5min)", "OVD percent (5min)", "RMS(a) overall (5min)", 
+    "RMS(a) OV only (5min)", "RMS(a) without OV (5min)"]] = df[["Samplerate", "is valid (5min)", 
+                                                                "OVD percent (5min)", "RMS(a) overall (5min)", 
+                                                                "RMS(a) OV only (5min)", 
+                                                                "RMS(a) without OV (5min)"]].astype(np.float32)
+
+#df.loc[0,0] = one_participant
+df.loc[0,"subject"] = "lala"
+
+df.loc[0,"Survey-Filename"] = survey_filename
+df.loc[0,"Time"] = chunk_start_time
+df.loc[0,"Correction Time"] = 0
+df.loc[0,"Samplerate"] = fs
+
+df.loc[0,"is valid (5min)"] = analysis_is_valid
+df.loc[0,"OVD percent (5min)"] = OVD_percent
+df.astype({"OVD percent (5min)":float }, errors='raise')
+df.loc[0,"RMS(a) overall (5min)"] = rms_psd_5min_all
+df.loc[0,"RMS(a) OV only (5min)"] = rms_psd_5min_OV
+df.loc[0,"RMS(a) without OV (5min)"] = rms_psd_5min_withoutOV
+
+
+
+# Ergebnisse der Berechnungen pro Fragebogen in Pandas
+
 
 #print(allParticipants[0]['subject'])
 
