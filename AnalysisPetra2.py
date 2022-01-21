@@ -4,6 +4,7 @@ script and function to analyse ovd percent and RMS(a) for 5 minutes of data at t
 (c) J.Bitzer@Jade-hs
 License: BSD 3-clause
 Version 1.0.0 JB 19.01.2022
+Version 1.1.0 JB 20.01.2022 added histogram analysis
 """
 from gettext import npgettext
 from time import strptime
@@ -20,8 +21,8 @@ import os
 
 user = "Mustermann"
 password = "12345"
-host = "localhost"
-#host = 139.13.250.201
+#host = "localhost"
+host = "139.13.250.201"
 conditions = False
 client = olMEGA_DataService_Client.client(user, password, host, debug = True)
 
