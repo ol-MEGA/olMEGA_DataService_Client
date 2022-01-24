@@ -4,6 +4,7 @@ script and function to analyse ovd percent and RMS(a) for 5 minutes of data at t
 (c) J.Bitzer@Jade-hs
 License: BSD 3-clause
 Version 1.0.0 JB 19.01.2022
+Version 1.1.0 JB 20.01.2022 added histogram analysis
 """
 from gettext import npgettext
 from time import strptime
@@ -20,21 +21,25 @@ import os
 
 user = "Mustermann"
 password = "12345"
-host = "localhost"
-#host = 139.13.250.201
+#host = "localhost"
+host = "139.13.250.201"
 conditions = False
 client = olMEGA_DataService_Client.client(user, password, host, debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 5
 start_survey = 0
-end_survey = -1 # set to -1 for all 
+end_survey = 2 # set to -1 for all 
+
+hist_min = 25
+hist_max = 100
 
 keep_feature_files = False
 
-result_filename = "Results_Petra1"
+result_filename = "Results_Petra2"
+histogram_filename = "Histo_Results_Petra2"
 
-#define resulting table
+#define resulting table for result
 df = pd.DataFrame(columns=["subject", "Survey_Filename","Survey_Starttime", "Chunk_Starttime", "Correction_Time", "Samplerate",
                            f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min",f"RMSa_overall_{pre_analysis_time_in_min}min",
                            f"RMSa_OV_only_{pre_analysis_time_in_min}min",f"RMSa_without_OV_{pre_analysis_time_in_min}min" ] )
@@ -46,7 +51,15 @@ df[["Samplerate",f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_a
         f"RMSa_without_OV_{pre_analysis_time_in_min}min"]].astype(np.float32)
 
 
-
+#define table for histogram
+dfHist = pd.DataFrame(columns=["subject", "Survey_Filename", f"RMS_a_Value_{pre_analysis_time_in_min}min",
+                      f"RMS_a_freq_all_{pre_analysis_time_in_min}min",f"RMS_a_freq_OV_{pre_analysis_time_in_min}min",
+                    f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"])
+dfHist[[f"RMS_a_Value_{pre_analysis_time_in_min}min",
+                      f"RMS_a_freq_all_{pre_analysis_time_in_min}min",f"RMS_a_freq_OV_{pre_analysis_time_in_min}min",
+                    f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"]] = dfHist[[f"RMS_a_Value_{pre_analysis_time_in_min}min",
+                      f"RMS_a_freq_all_{pre_analysis_time_in_min}min",f"RMS_a_freq_OV_{pre_analysis_time_in_min}min",
+                    f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"]].astype(np.int32)
 
 def get_all_participants(db):
         return db.executeQuery('SELECT DISTINCT Subject FROM EMA_datachunk')
@@ -165,7 +178,7 @@ f0680666-c7b4-4f32-9f1e-27bdcf4d231d    30
 
 
 """
-     
+hist_counter = 0     
 all_participants = get_all_participants(client)
 
 
@@ -218,17 +231,67 @@ for survey_counter in range(start_survey,end_survey):
     w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,'a','lin')
     meanPSD = (((Pxx+Pyy)*0.5*fs)*w)*0.25 # this works because of broadcasting rules in python
     rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
+    # histogram analysis
+    smallRMS_all = len(rms_psd[rms_psd < hist_min-0.5])
+    hist_result,bin_edges = np.histogram(rms_psd, bins = hist_max-hist_min, range=(hist_min-0.5,hist_max-0.5))
+    highRMS_all = len(rms_psd[rms_psd > hist_max-0.5])
+
     rms_psd_premin_all = np.mean(rms_psd)
     rms_psd_premin_OV = None
     rms_psd_premin_withoutOV = None
     OVD_percent = np.mean(ovd_data)
     if (OVD_percent>0 and len(rms_psd) == len(ovd_data)):
-            rms_psd_premin_OV = np.mean(rms_psd[ovd_data[:,0] == 1])
+        rms_psd_ov = rms_psd[ovd_data[:,0] == 1]
+    # histogram analysis
+        smallRMS_ov = len(rms_psd_ov[rms_psd_ov < hist_min-0.5])
+        hist_result_ov,bin_edges_ov = np.histogram(rms_psd_ov, bins = hist_max-hist_min, range=(hist_min-0.5,hist_max-0.5))
+        highRMS_ov = len(rms_psd_ov[rms_psd_ov > hist_max-0.5])
+        rms_psd_premin_OV = np.mean(rms_psd_ov)
     if (OVD_percent<1 and len(rms_psd) == len(ovd_data)):
-            rms_psd_premin_withoutOV = np.mean(rms_psd[ovd_data[:,0] != 1])
+        rms_psd_withoutOV = rms_psd[ovd_data[:,0] != 1]
+    # histogram analysis
+        smallRMS_withouOV = len(rms_psd_withoutOV[rms_psd_withoutOV < hist_min-0.5])
+        hist_result_withouOV,bin_edges_withouOV = np.histogram(rms_psd_withoutOV, bins = hist_max-hist_min, range=(hist_min-0.5,hist_max-0.5))
+        highRMS_withouOV = len(rms_psd_withoutOV[rms_psd_withoutOV > hist_max-0.5])
+        rms_psd_premin_withoutOV = np.mean(rms_psd_withoutOV)
 
 
 
+    # write histogram results
+    # smaller hist_min
+    dfHist.loc[hist_counter,"subject"] = one_participant
+    dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
+    dfHist.loc[hist_counter, f"RMS_a_Value_{pre_analysis_time_in_min}min"] = hist_min-1
+    dfHist.loc[hist_counter, f"RMS_a_freq_all_{pre_analysis_time_in_min}min"] = smallRMS_all
+    dfHist.loc[hist_counter, f"RMS_a_freq_OV_{pre_analysis_time_in_min}min"] = smallRMS_ov
+    dfHist.loc[hist_counter, f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"] = smallRMS_withouOV
+
+    hist_counter+=1
+    # all hist value
+    for hist_val in range(hist_min,hist_max):
+        dfHist.loc[hist_counter,"subject"] = one_participant
+        dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
+        dfHist.loc[hist_counter,f"RMS_a_Value_{pre_analysis_time_in_min}min"] = hist_val
+        dfHist.loc[hist_counter, f"RMS_a_freq_all_{pre_analysis_time_in_min}min"] = hist_result[hist_val-hist_min]
+        dfHist.loc[hist_counter, f"RMS_a_freq_OV_{pre_analysis_time_in_min}min"] = hist_result_ov[hist_val-hist_min]
+        dfHist.loc[hist_counter, f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"] = hist_result_withouOV[hist_val-hist_min]
+
+        hist_counter+=1
+        
+    #higher hist_max
+
+    dfHist.loc[hist_counter,"subject"] = one_participant
+    dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
+    dfHist.loc[hist_counter,f"RMS_a_Value_{pre_analysis_time_in_min}min"] = hist_max
+    dfHist.loc[hist_counter, f"RMS_a_freq_all_{pre_analysis_time_in_min}min"] = highRMS_all
+    dfHist.loc[hist_counter, f"RMS_a_freq_OV_{pre_analysis_time_in_min}min"] = highRMS_ov
+    dfHist.loc[hist_counter, f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"] = highRMS_withouOV
+    hist_counter+=1
+
+#(columns=["subject", "Survey_Filename", f"RMS_a_Value_{pre_analysis_time_in_min}min",
+#                      f"RMS_a_freq_all_{pre_analysis_time_in_min}min",f"RMS_a_freq_OV_{pre_analysis_time_in_min}min",
+#                   f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"])    
+    
     df.loc[survey_counter,"subject"] = one_participant
     df.loc[survey_counter,"Survey_Filename"] = survey_filename
     df.loc[survey_counter,"Survey_Starttime"] = time_info
@@ -244,10 +307,12 @@ for survey_counter in range(start_survey,end_survey):
 #print(df.head())
 
 df.to_csv(result_filename + '.csv')
+dfHist.to_csv(histogram_filename + '.csv')
 
 import pyreadstat
 
 pyreadstat.write_sav(df, result_filename+'.sav')
+pyreadstat.write_sav(dfHist, histogram_filename+'.sav')
 
 
 client.close()
