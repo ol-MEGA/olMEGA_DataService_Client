@@ -2,6 +2,6 @@
 settings.conf
 .vscode/launch.json
 *.feat
-log.txt
+*.txt
 *.csv
 *.sav
