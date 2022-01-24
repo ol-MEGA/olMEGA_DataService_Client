@@ -29,15 +29,15 @@ client = olMEGA_DataService_Client.client(user, password, host, debug = True, po
 # some parameters
 pre_analysis_time_in_min = 5
 start_survey = 0
-end_survey = 2 # set to -1 for all 
+end_survey = 200 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
 
 keep_feature_files = False
 
-result_filename = "Results_Petra2"
-histogram_filename = "Histo_Results_Petra2"
+result_filename = f"Results_EM1_{start_survey}_{end_survey}"
+histogram_filename = "Histo_Results_EM1_{start_survey}_{end_survey}"
 
 #define resulting table for result
 df = pd.DataFrame(columns=["subject", "Survey_Filename","Survey_Starttime", "Chunk_Starttime", "Correction_Time", "Samplerate",
