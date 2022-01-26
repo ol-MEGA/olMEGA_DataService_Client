@@ -11,27 +11,11 @@ import numpy as np
 import pandas as pd
 import os
 
-user = "Mustermann"
-password = "12345"
-host = "localhost"
-#host = "10.42.0.202"
 conditions = False
 
-client = olMEGA_DataService_Client.client(user, password, host, debug = True)
+client = olMEGA_DataService_Client.client()
 
-<<<<<<< HEAD
-"""
-file_dict = client.executeQuery('SELECT Subject, Filename FROM EMA_datachunk \
-        JOIN EMA_file ON EMA_datachunk.ID = EMA_file.DataChunk_id \
-        JOIN EMA_filetype ON EMA_file.FileType_id = EMA_filetype.ID \
-        WHERE Subject = "%s" \
-        AND EMA_datachunk.Start >= "%s" \
-        AND EMA_datachunk.Start <= "%s" \
-        AND EMA_filetype.FileExtension = "%s" ' % ('NN07IS04', '2021-01-01 00:00:00', '2022-01-01 00:00:00', 'psd')) 
 
-client.downloadFiles("./tmp", file_dict, True)
-"""
-=======
 def get_all_participants(db):
         return db.executeQuery('SELECT DISTINCT Subject FROM EMA_datachunk')
 
@@ -206,7 +190,6 @@ df.loc[0,"RMS(a) without OV (5min)"] = rms_psd_5min_withoutOV
 #        AND EMA_filetype.FileExtension = "%s" ' % ('NN07IS04', '2021-01-01 00:00:00', '2022-01-01 00:00:00', 'psd')) 
 
 #client.downloadFiles("./tmp", file_dict, True)
->>>>>>> 8b1a88b3744ae786397a7c7f1700142b3da8ca9f
 
 conditions =  {"subject": "NN07IS04"}
 #conditions =  {"questionnaire": {'answer' : {'answerkey' : '1010102'}}};
@@ -215,11 +198,7 @@ conditions =  {"subject": "NN07IS04"}
 
 
 #print("date and time =", datetime.now().strftime("%d/%m/%Y %H:%M:%S:%f"))
-<<<<<<< HEAD
-myDataSet = client.getDataSet("datachunk", conditions)
-=======
 #myDataSet = client.getDataSet("datachunk", conditions)
->>>>>>> 8b1a88b3744ae786397a7c7f1700142b3da8ca9f
 #myDataSet = client.executeQuery("delete FROM EMA_datachunk")
 #myDataSet = client.getDataSet("answer", conditions)
 #print (myDataSet)

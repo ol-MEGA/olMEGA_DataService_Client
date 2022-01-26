@@ -1,12 +1,7 @@
 clear; close all; clc;
 addpath('olMEGA_DataService_Client');
 
-user = "Mustermann";
-password = "12345";
-% host = "10.42.0.202";
-host = "localhost";
-
-myEmaClient = olMEGA_DataService_Client(user, password, host);
+myEmaClient = olMEGA_DataService_Client();
 Conditions = struct();
 
 %% Get Data

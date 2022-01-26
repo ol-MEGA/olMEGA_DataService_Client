@@ -6,12 +6,30 @@ from requests.auth import HTTPBasicAuth
 import tempfile
 import zipfile
 import urllib3
+import configparser
 
 class client():
 
-    def __init__(self,  user, password, host, calledByMatlab = False, port = 5000, debug = False):
+    def __init__(self, user = "", password = "", host = "", calledByMatlab = False, port = -1, debug = False):
         if sys.version_info[0] < 3:
             raise Exception("Must be using Python 3")
+        config = configparser.ConfigParser()
+        if os.path.isfile("settings.conf"):
+            config.read('settings.conf')
+            if user == "":
+                user = config["MAIN"].get("Username", "")
+            if password == "":
+                password = config["MAIN"].get("Password", "")
+            if host == "":
+                host = config["MAIN"].get("Host", "127.0.0.1")
+            if port == -1:
+                port = int(config["MAIN"].get("Port", "443"))
+        else:
+            config['MAIN'] = {"Username": "", "Password": "", "Host": "127.0.0.1", "Port": 443}
+            with open('settings.conf', 'w') as configfile:
+                config.write(configfile)
+            print("\33[31mInfo: empty settings.conf was created! Please add login informations!\33[0m")
+            exit()
         self.auth = HTTPBasicAuth(user, password)
         self.host = "https://" + host + ":" + str(port)
         self.calledByMatlab = calledByMatlab

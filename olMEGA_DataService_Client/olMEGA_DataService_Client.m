@@ -1,4 +1,4 @@
-function handles = olMEGA_DataService_Client(user, password, host)
+function handles = olMEGA_DataService_Client(user = "", password = "", host = "", port = -1)
 
     if nargin < 3
         disp("Usage:")
@@ -9,7 +9,7 @@ function handles = olMEGA_DataService_Client(user, password, host)
     cd (fileparts(mfilename('fullpath')));
     PyEMAClientModule = py.importlib.import_module('olMEGA_DataService_Client');
     py.importlib.reload(PyEMAClientModule);
-    PyEMAClientObject = py.olMEGA_DataService_Client.olMEGA_DataService_Client.client(user, password, host, 1);
+    PyEMAClientObject = py.olMEGA_DataService_Client.olMEGA_DataService_Client.client(user, password, host, calledByMatlab = 1, port = port);
     cd (tmpDir)
     
     handles.getDataSet = @getDataSet;

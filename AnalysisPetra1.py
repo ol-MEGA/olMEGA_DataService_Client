@@ -18,12 +18,7 @@ import numpy as np
 import pandas as pd
 import os
 
-user = "Mustermann"
-password = "12345"
-host = "localhost"
-#host = 139.13.250.201
-conditions = False
-client = olMEGA_DataService_Client.client(user, password, host, debug = True)
+client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 5
