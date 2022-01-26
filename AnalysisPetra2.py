@@ -21,23 +21,23 @@ import os
 
 user = "Mustermann"
 password = "12345"
-#host = "localhost"
+#host = "localhost" # port = 5000 (default)
 host = "139.13.250.201"
 conditions = False
-client = olMEGA_DataService_Client.client(user, password, host, debug = True)
+client = olMEGA_DataService_Client.client(user, password, host, debug = True, port = 443)
 
 # some parameters
 pre_analysis_time_in_min = 5
 start_survey = 0
-end_survey = 2 # set to -1 for all 
+end_survey = 200 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
 
 keep_feature_files = False
 
-result_filename = "Results_Petra2"
-histogram_filename = "Histo_Results_Petra2"
+result_filename = f"Results_EM1_{start_survey}_{end_survey}"
+histogram_filename = "Histo_Results_EM1_{start_survey}_{end_survey}"
 
 #define resulting table for result
 df = pd.DataFrame(columns=["subject", "Survey_Filename","Survey_Starttime", "Chunk_Starttime", "Correction_Time", "Samplerate",
@@ -130,7 +130,7 @@ def get_correction_time_for_survey(db, survey_id):
                     from EMA_answer inner join EMA_translations on EMA_answer.AnswerKey = EMA_translations.Key 
                     inner join EMA_question on EMA_answer.Question_id  = EMA_question.ID 
                     where EMA_question.QuestionKey = "527d415b-35f7-4c68-a09d-f8e18e192d2d" AND 
-                    EMA_Answer.Questionnaire_id = "{survey_id}" '''
+                    EMA_answer.Questionnaire_id = "{survey_id}" '''
     Answerkey_and_text = db.executeQuery(sql_query_string)
     #print(Answerkey_and_text)
     if Answerkey_and_text[0]['answerkey'] == 'c849f5d9-1c18-406e-bbe0-e4c9695a9007':
@@ -145,6 +145,8 @@ def get_correction_time_for_survey(db, survey_id):
         return 15
     if Answerkey_and_text[0]['answerkey'] == '1035d82e-e005-4d63-8368-9f02cbdd28e4':
         return 20
+    if Answerkey_and_text[0]['answerkey'] == 'f0680666-c7b4-4f32-9f1e-27bdcf4d231d':
+        return 30
     
     
 
