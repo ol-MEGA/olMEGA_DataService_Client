@@ -5,15 +5,16 @@ import sys
 from datetime import datetime
 import requests
 
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-user = "Mustermann"
-password = "12345"
-host = "localhost"
-client = olMEGA_DataService_Client.client(user, password, host)
+client = olMEGA_DataService_Client.client(debug = True)
 client.silent = True
 
-pathList = ["/media/bitzer/Samsung_T5/IHAB1_New/"]
+#pathList = ["/media/sven/Backup/Work/olMEGA/IHAB_converted_EMA2018/EK06DI26_180905_aw/"]
+pathList = ["/media/sven/Backup/Work/olMEGA/IHAB_converted_EMA2018/KE04ER17_180710_aw/"]
+#pathList = ["/home/sven/tmp/EK06DI26_180905_aw/"]
+#pathList = ["/media/bitzer/Samsung_T5/IHAB1_New/"]
 
 subjectOld = ""
 subject = ""

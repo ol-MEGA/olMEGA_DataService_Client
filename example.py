@@ -11,13 +11,10 @@ import numpy as np
 import pandas as pd
 import os
 
-user = "Mustermann"
-password = "12345"
-host = "localhost"
-#host = "10.42.0.202"
 conditions = False
 
-client = olMEGA_DataService_Client.client(user, password, host, debug = True)
+client = olMEGA_DataService_Client.client()
+
 
 def get_all_participants(db):
         return db.executeQuery('SELECT DISTINCT Subject FROM EMA_datachunk')
@@ -194,7 +191,7 @@ df.loc[0,"RMS(a) without OV (5min)"] = rms_psd_5min_withoutOV
 
 #client.downloadFiles("./tmp", file_dict, True)
 
-#conditions =  {"subject": "NN07IS04"}
+conditions =  {"subject": "NN07IS04"}
 #conditions =  {"questionnaire": {'answer' : {'answerkey' : '1010102'}}};
 #conditions =  {"datachunk" : {"subject": "NN07IS04"}, "questionnaire": {'surveyfile' : 'questionnaire20180425frei - simple.xml'}};
 #conditions =  {'answer' : {'answerkey' : '1010101'}};
