@@ -24,15 +24,15 @@ client = olMEGA_DataService_Client.client(debug = True)
 # some parameters
 pre_analysis_time_in_min = 5
 start_survey = 0
-end_survey = 200 # set to -1 for all 
+end_survey = 400 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
 
 keep_feature_files = False
 
-result_filename = f"Resultsb_EM1_{start_survey}_{end_survey}"
-histogram_filename = f"Histo_Resultsb_EM1_{start_survey}_{end_survey}"
+result_filename = f"Results_EM1_{start_survey}_{end_survey}"
+histogram_filename = f"Histo_Results_EM1_{start_survey}_{end_survey}"
 if end_survey == -1:
     result_filename = f"Results_EM1_{start_survey}_end"
     histogram_filename = f"Histo_Results_EM1_{start_survey}_end"
@@ -189,7 +189,9 @@ if end_survey == -1:
 for survey_counter in range(start_survey,end_survey):
     print(f"{survey_counter} / {end_survey}")
     one_participant = all_questionaires[survey_counter]['subject']
+    print(one_participant)
     questionaire_id = all_questionaires[survey_counter]['id']
+    print(questionaire_id)
     survey_filename = all_questionaires[survey_counter]['filename']
     time_info = get_questionaire_fillout_time(client,questionaire_id)
     if time_info == None:
