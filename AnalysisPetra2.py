@@ -36,8 +36,11 @@ hist_max = 100
 
 keep_feature_files = False
 
-result_filename = f"Results_EM1_{start_survey}_{end_survey}"
-histogram_filename = "Histo_Results_EM1_{start_survey}_{end_survey}"
+result_filename = f"Resultsb_EM1_{start_survey}_{end_survey}"
+histogram_filename = f"Histo_Resultsb_EM1_{start_survey}_{end_survey}"
+if end_survey == -1:
+    result_filename = f"Results_EM1_{start_survey}_end"
+    histogram_filename = f"Histo_Results_EM1_{start_survey}_end"
 
 #define resulting table for result
 df = pd.DataFrame(columns=["subject", "Survey_Filename","Survey_Starttime", "Chunk_Starttime", "Correction_Time", "Samplerate",
@@ -241,6 +244,12 @@ for survey_counter in range(start_survey,end_survey):
     rms_psd_premin_all = np.mean(rms_psd)
     rms_psd_premin_OV = None
     rms_psd_premin_withoutOV = None
+    smallRMS_withouOV = None
+    highRMS_withouOV = None
+    smallRMS_ov = None
+    highRMS_ov = None
+    hist_result_ov = []
+    hist_result_withouOV = []
     OVD_percent = np.mean(ovd_data)
     if (OVD_percent>0 and len(rms_psd) == len(ovd_data)):
         rms_psd_ov = rms_psd[ovd_data[:,0] == 1]
@@ -275,8 +284,10 @@ for survey_counter in range(start_survey,end_survey):
         dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
         dfHist.loc[hist_counter,f"RMS_a_Value_{pre_analysis_time_in_min}min"] = hist_val
         dfHist.loc[hist_counter, f"RMS_a_freq_all_{pre_analysis_time_in_min}min"] = hist_result[hist_val-hist_min]
-        dfHist.loc[hist_counter, f"RMS_a_freq_OV_{pre_analysis_time_in_min}min"] = hist_result_ov[hist_val-hist_min]
-        dfHist.loc[hist_counter, f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"] = hist_result_withouOV[hist_val-hist_min]
+        if len(hist_result_ov) != 0:
+            dfHist.loc[hist_counter, f"RMS_a_freq_OV_{pre_analysis_time_in_min}min"] = hist_result_ov[hist_val-hist_min]
+        if len(hist_result_withouOV) != 0:
+            dfHist.loc[hist_counter, f"RMS_a_freq_withoutOV_{pre_analysis_time_in_min}min"] = hist_result_withouOV[hist_val-hist_min]
 
         hist_counter+=1
         
