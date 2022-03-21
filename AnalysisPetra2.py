@@ -23,8 +23,8 @@ client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 5
-start_survey = 0
-end_survey = 400 # set to -1 for all 
+start_survey = 25
+end_survey = 28 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
@@ -75,14 +75,17 @@ def get_all_questionaire_filenames_for_one_subject (db, participent_pseudoname):
 
 def get_questionaire_fillout_time(db, questionaire_id):
         sql_query_string = f'''SELECT EMA_questionnaire.Start
-                        FROM EMA_answer INNER JOIN EMA_questionnaire on EMA_answer.Questionnaire_id = EMA_questionnaire.ID 
-                        INNER JOIN EMA_question on EMA_answer.Question_id = EMA_question.ID 
-                        WHERE EMA_answer.Questionnaire_id = "{questionaire_id}" AND 
-                        EMA_question.QuestionKey = "527d415b-35f7-4c68-a09d-f8e18e192d2d"'''
+                        FROM EMA_questionnaire WHERE EMA_questionnaire.ID = "{questionaire_id}"'''
+
+#        sql_query_string = f'''SELECT DISTINCT EMA_questionnaire.Start
+#                        FROM EMA_answer INNER JOIN EMA_questionnaire on EMA_answer.Questionnaire_id = EMA_questionnaire.ID 
+#                        INNER JOIN EMA_question on EMA_answer.Question_id = EMA_question.ID 
+#                        WHERE EMA_answer.Questionnaire_id = "{questionaire_id}" AND 
+ #                       EMA_question.QuestionKey = "527d415b-35f7-4c68-a09d-f8e18e192d2d"'''
                                 
         query_answer = db.executeQuery(sql_query_string)
         if len(query_answer) == 0:
-            print("A survey returns no start time" + sql_query_string)
+            print("A survey returns no start time: " + sql_query_string)
             return None
         questionaire_start_time = datetime.strptime(query_answer[0]['start'],'%Y-%m-%d %H:%M:%S')
         
@@ -130,6 +133,8 @@ def get_correction_time_for_survey(db, survey_id):
                     where EMA_question.QuestionKey = "527d415b-35f7-4c68-a09d-f8e18e192d2d" AND 
                     EMA_answer.Questionnaire_id = "{survey_id}" '''
     Answerkey_and_text = db.executeQuery(sql_query_string)
+    if not Answerkey_and_text:
+        return -1
     #print(Answerkey_and_text)
     if Answerkey_and_text[0]['answerkey'] == 'c849f5d9-1c18-406e-bbe0-e4c9695a9007':
         return 0
@@ -146,7 +151,7 @@ def get_correction_time_for_survey(db, survey_id):
     if Answerkey_and_text[0]['answerkey'] == 'f0680666-c7b4-4f32-9f1e-27bdcf4d231d':
         return 30
     
-    
+
 
 def get_data_for_files_in_dict(db, file_dict, keep_files = False):
         db.downloadFiles("./tmp", file_dict, True)
@@ -195,12 +200,22 @@ for survey_counter in range(start_survey,end_survey):
     survey_filename = all_questionaires[survey_counter]['filename']
     time_info = get_questionaire_fillout_time(client,questionaire_id)
     if time_info == None:
+        print (survey_filename)
         continue
     correction_time = get_correction_time_for_survey(client, questionaire_id)
+    
+    exist_correction_time = True
+    if (correction_time == -1):
+        print("No correction time: ")
+        exist_correction_time = False
+        correction_time = 0
 
     #chunk = get_chunk_at_time(client, one_participant, time_info-timedelta(minutes=correction_time))
     chunk = get_chunk_at_time(client, one_participant, time_info)
     if len(chunk) == 0:
+        print ("No data file at survey time: ")
+        print (correction_time)
+        print (survey_filename)
         continue
     
     chunk_start_time = datetime.strptime(chunk[0]['start'],'%Y-%m-%d %H:%M:%S')
@@ -211,11 +226,13 @@ for survey_counter in range(start_survey,end_survey):
 
     file_dict = get_filedict_for_chunks(client,chunks, 'psd')
     if len(file_dict) == 0:
+        print("No PSD files in the desired 5 minutes")
         continue
     file_dict.sort(key= lambda d: d['filename']) 
     # client.downloadFiles("./tmp", file_dict, True)
     file_dictovd = get_filedict_for_chunks(client,chunks, 'ovd')
     if len(file_dictovd) == 0:
+        print("No OVD files in the desired 5 minutes")
         continue
     
     file_dictovd.sort(key= lambda d: d['filename']) 
@@ -306,9 +323,14 @@ for survey_counter in range(start_survey,end_survey):
     df.loc[survey_counter,"Survey_Filename"] = survey_filename
     df.loc[survey_counter,"Survey_Starttime"] = time_info
     df.loc[survey_counter,"Chunk_Starttime"] = chunk_start_time
-    df.loc[survey_counter,"Correction_Time"] = correction_time
+    
+    if exist_correction_time:
+        df.loc[survey_counter,"Correction_Time"] = correction_time
+    else:
+        df.loc[survey_counter,"Correction_Time"] = -1
+    
     df.loc[survey_counter,"Samplerate"] = fs
-    df.loc[survey_counter,f"is_valid_{pre_analysis_time_in_min}min"] = analysis_is_valid
+    df.loc[survey_counter,f"is_valid_{pre_analysis_time_in_min}min"] = len(chunks)
     df.loc[survey_counter,f"OVD_percent_{pre_analysis_time_in_min}min"] = OVD_percent
     df.loc[survey_counter,f"RMSa_overall_{pre_analysis_time_in_min}min"] = rms_psd_premin_all
     df.loc[survey_counter,f"RMSa_OV_only_{pre_analysis_time_in_min}min"] = rms_psd_premin_OV
