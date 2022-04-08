@@ -18,13 +18,16 @@ from olMEGA_DataService_Tools import acousticweighting as aw
 import numpy as np
 import pandas as pd
 import os
+import scipy.signal as sig
+
+import matplotlib.pyplot as plt
 
 client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 5
-start_survey = 25
-end_survey = 28 # set to -1 for all 
+start_survey = 0
+end_survey = 50 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
@@ -40,13 +43,13 @@ if end_survey == -1:
 #define resulting table for result
 df = pd.DataFrame(columns=["subject", "Survey_Filename","Survey_Starttime", "Chunk_Starttime", "Correction_Time", "Samplerate",
                            f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min",f"RMSa_overall_{pre_analysis_time_in_min}min",
-                           f"RMSa_OV_only_{pre_analysis_time_in_min}min",f"RMSa_without_OV_{pre_analysis_time_in_min}min" ] )
+                           f"RMSa_OV_only_{pre_analysis_time_in_min}min",f"RMSa_without_OV_{pre_analysis_time_in_min}min", f"RMSa_tones_removed{pre_analysis_time_in_min}min" ] )
 
 df[["Samplerate",f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min", f"RMSa_overall_{pre_analysis_time_in_min}min", 
-    f"RMSa_OV_only_{pre_analysis_time_in_min}min", f"RMSa_without_OV_{pre_analysis_time_in_min}min"]]= df[[
+    f"RMSa_OV_only_{pre_analysis_time_in_min}min", f"RMSa_without_OV_{pre_analysis_time_in_min}min", f"RMSa_tones_removed{pre_analysis_time_in_min}min"]]= df[[
         "Samplerate", f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min", 
         f"RMSa_overall_{pre_analysis_time_in_min}min", f"RMSa_OV_only_{pre_analysis_time_in_min}min", 
-        f"RMSa_without_OV_{pre_analysis_time_in_min}min"]].astype(np.float32)
+        f"RMSa_without_OV_{pre_analysis_time_in_min}min", f"RMSa_tones_removed{pre_analysis_time_in_min}min"]].astype(np.float32)
 
 
 #define table for histogram
@@ -97,7 +100,11 @@ def get_chunk_at_time(db, participant, desired_time):
         sql_query_string = f'''SELECT * FROM EMA_datachunk WHERE EMA_datachunk.Subject  = "{participant}" AND 
                                 EMA_datachunk.Start > "{time_string}" AND 
                                 EMA_datachunk.Start < "{time_string_delta}"'''
-        return db.executeQuery(sql_query_string)
+        
+        result = db.executeQuery(sql_query_string)
+        if not result:
+            print (sql_query_string)
+        return result
 
 def get_chunks_for_time_interval(db, participant, start_time, end_time):
         time_string = datetime.strftime(start_time,'%Y-%m-%d %H:%M:%S')
@@ -249,6 +256,29 @@ for survey_counter in range(start_survey,end_survey):
     nr_of_frames, fft_size = Pxx.shape
     w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,'a','lin')
     meanPSD = (((Pxx+Pyy)*0.5*fs)*w)*0.25 # this works because of broadcasting rules in python
+    flag_disturb_tones_removed = 0
+    if fs>10000:
+        # look for disturbing tones at high frequencies and remove them
+        analysis_percentile = 90
+        perc_log = 10*np.log10(np.percentile(meanPSD,analysis_percentile,axis = 0)) # percentile over time
+        peaks, peaks_p = sig.find_peaks(perc_log,prominence=5, width=3)
+        if len(peaks)>0:
+            peaks = peaks[~(peaks<200)] # delete low freq maxima
+            print(peaks)
+            peaks_all = []
+            for p in peaks:
+                peaks_ext = p + np.arange(-5,5)
+                peaks_all.extend(peaks_ext)
+        
+            meanPSD[:,peaks_all] = 0
+            #fig, ax =  plt.subplots()
+            #ax.plot(perc_log)
+            #ax.plot(peaks, perc_log[peaks], "x")
+            #perc_log2 = 10*np.log10(np.percentile(meanPSD,analysis_percentile,axis = 0)) # percentile over time
+            #ax.plot(perc_log2,'r')
+            #plt.show()
+            flag_disturb_tones_removed = 1
+        
     rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
     # histogram analysis
     smallRMS_all = len(rms_psd[rms_psd < hist_min-0.5])
@@ -335,7 +365,7 @@ for survey_counter in range(start_survey,end_survey):
     df.loc[survey_counter,f"RMSa_overall_{pre_analysis_time_in_min}min"] = rms_psd_premin_all
     df.loc[survey_counter,f"RMSa_OV_only_{pre_analysis_time_in_min}min"] = rms_psd_premin_OV
     df.loc[survey_counter,f"RMSa_without_OV_{pre_analysis_time_in_min}min"] = rms_psd_premin_withoutOV
-
+    df.loc[survey_counter,f"RMSa_tones_removed{pre_analysis_time_in_min}min"] = flag_disturb_tones_removed
 #print(df.head())
 
 df.to_csv(result_filename + '.csv')
