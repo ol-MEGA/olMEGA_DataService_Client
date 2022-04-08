@@ -23,8 +23,8 @@ client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 5
-start_survey = 25
-end_survey = 28 # set to -1 for all 
+start_survey = 800
+end_survey = -1 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
@@ -96,7 +96,7 @@ def get_chunk_at_time(db, participant, desired_time):
         time_string_delta = datetime.strftime(desired_time ,'%Y-%m-%d %H:%M:%S')
         sql_query_string = f'''SELECT * FROM EMA_datachunk WHERE EMA_datachunk.Subject  = "{participant}" AND 
                                 EMA_datachunk.Start > "{time_string}" AND 
-                                EMA_datachunk.Start < "{time_string_delta}"'''
+                                EMA_datachunk.Start <= "{time_string_delta}"'''
         return db.executeQuery(sql_query_string)
 
 def get_chunks_for_time_interval(db, participant, start_time, end_time):
