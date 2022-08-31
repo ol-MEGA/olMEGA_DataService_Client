@@ -5,3 +5,4 @@ settings.conf
 *.txt
 *.csv
 *.sav
+.vscode/settings.json
