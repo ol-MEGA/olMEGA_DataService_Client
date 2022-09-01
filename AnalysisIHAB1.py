@@ -25,10 +25,10 @@ import matplotlib.pyplot as plt
 client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
-pre_analysis_time_in_min = 5
-weighting_func = 'c'
+pre_analysis_time_in_min = 3
+weighting_func = 'a'
 start_survey = 0
-end_survey = 2 # set to -1 for all 
+end_survey = 4 # set to -1 for all 
 
 hist_min = 25
 hist_max = 100
@@ -254,103 +254,112 @@ for survey_counter in range(start_survey,end_survey):
     Pxx = psd_data[:, n[0] : n[0] + n[1]]
     Pyy = psd_data[:, n[0] + n[1] : ]                    
 
+    def removeStationaryTones(PSDSpectrum,fs):
+        removed = 0
+        if fs>10000:
+            # look for disturbing tones at high frequencies and remove them
+            analysis_percentile = 90
+            perc_log = 10*np.log10(np.percentile(PSDSpectrum,analysis_percentile,axis = 0)) # percentile over time
+            peaks, peaks_p = sig.find_peaks(perc_log,prominence=5, width=3)
+            if len(peaks)>0:
+                peaks = peaks[~(peaks<200)] # delete low freq maxima
+                print(peaks)
+                peaks_all = []
+                for p in peaks:
+                    peaks_ext = p + np.arange(-5,5)
+                    peaks_all.extend(peaks_ext)
+            
+                PSDSpectrum[:,peaks_all] = 0
+                removed = 1
+        return PSDSpectrum, removed
+
+    Pxx, flag = removeStationaryTones(Pxx,fs)
+    Pyy, flag2 = removeStationaryTones(Pyy,fs)
+    flag_disturb_tones_removed = flag or flag2
+    
     nr_of_frames, fft_size = Pxx.shape
     w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
     meanPSD = (((Pxx+Pyy)*0.5*fs)*w)*0.25 # this works because of broadcasting rules in python
-    
-    
-    # ToDo; Build function for removal and remove the tones in Pxx and Pyy
-    
-    flag_disturb_tones_removed = 0
-    if fs>10000:
-        # look for disturbing tones at high frequencies and remove them
-        analysis_percentile = 90
-        perc_log = 10*np.log10(np.percentile(meanPSD,analysis_percentile,axis = 0)) # percentile over time
-        peaks, peaks_p = sig.find_peaks(perc_log,prominence=5, width=3)
-        if len(peaks)>0:
-            peaks = peaks[~(peaks<200)] # delete low freq maxima
-            print(peaks)
-            peaks_all = []
-            for p in peaks:
-                peaks_ext = p + np.arange(-5,5)
-                peaks_all.extend(peaks_ext)
-        
-            meanPSD[:,peaks_all] = 0
-            #fig, ax =  plt.subplots()
-            #ax.plot(perc_log)
-            #ax.plot(peaks, perc_log[peaks], "x")
-            #perc_log2 = 10*np.log10(np.percentile(meanPSD,analysis_percentile,axis = 0)) # percentile over time
-            #ax.plot(perc_log2,'r')
-            #plt.show()
-            flag_disturb_tones_removed = 1
         
     rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
     # histogram analysis
     
     
-    # todo build functions to compute histogram and save this histogram to the dataframe
-    smallRMS_all = len(rms_psd[rms_psd < hist_min-0.5])
-    hist_result,bin_edges = np.histogram(rms_psd, bins = hist_max-hist_min, range=(hist_min-0.5,hist_max-0.5))
-    highRMS_all = len(rms_psd[rms_psd > hist_max-0.5])
-
+    # todo build functions to save this histogram to the dataframe
+    def get_histogram(data, hist_min = None, hist_max = None, nr_of_bins = -1):
+        if hist_min is None:
+            hist_min = np.min(data)
+            
+        if hist_max is None:
+            hist_max = np.max(data)
+    
+        if nr_of_bins == -1:
+            nr_of_bins = hist_max-hist_min
+            binwidth = 1
+        else:
+            binwidth = (hist_max-hist_min)/nr_of_bins
+            
+        smaller_min = len(data[data < hist_min-binwidth*0.5])
+        larger_max = len(data[data > hist_max-binwidth*0.5])
+        result,bin_edges = np.histogram(data, bins = nr_of_bins, range=(hist_min-0.5,hist_max-0.5))
+        return result, smaller_min, larger_max
+    
+    hist_result, smallRMS_all, highRMS_all = get_histogram(rms_psd,hist_min,hist_max)
     rms_psd_premin_all = np.mean(rms_psd)
+    
+    OVD_percent = np.mean(ovd_data)
+    # OV
     rms_psd_premin_OV = None
-    rms_psd_premin_withoutOV = None
-    smallRMS_withouOV = None
-    highRMS_withouOV = None
     smallRMS_ov = None
     highRMS_ov = None
     hist_result_ov = []
-    hist_result_withouOV = []
-    OVD_percent = np.mean(ovd_data)
     if (OVD_percent>0 and len(rms_psd) == len(ovd_data)):
         rms_psd_ov = rms_psd[ovd_data[:,0] == 1]
-    # histogram analysis
-        smallRMS_ov = len(rms_psd_ov[rms_psd_ov < hist_min-0.5])
-        hist_result_ov,bin_edges_ov = np.histogram(rms_psd_ov, bins = hist_max-hist_min, range=(hist_min-0.5,hist_max-0.5))
-        highRMS_ov = len(rms_psd_ov[rms_psd_ov > hist_max-0.5])
+        hist_result_ov, smallRMS_ov, highRMS_ov = get_histogram(rms_psd_ov, hist_min, hist_max)
         rms_psd_premin_OV = np.mean(rms_psd_ov)
+
+    # without OV
+    rms_psd_premin_withoutOV = None
+    smallRMS_withouOV = None
+    highRMS_withouOV = None
+    hist_result_withouOV = []
     if (OVD_percent<1 and len(rms_psd) == len(ovd_data)):
         rms_psd_withoutOV = rms_psd[ovd_data[:,0] != 1]
-    # histogram analysis
-        smallRMS_withouOV = len(rms_psd_withoutOV[rms_psd_withoutOV < hist_min-0.5])
-        hist_result_withouOV,bin_edges_withouOV = np.histogram(rms_psd_withoutOV, bins = hist_max-hist_min, range=(hist_min-0.5,hist_max-0.5))
-        highRMS_withouOV = len(rms_psd_withoutOV[rms_psd_withoutOV > hist_max-0.5])
+        hist_result_withouOV, smallRMS_withouOV, highRMS_withouOV = get_histogram(rms_psd_withoutOV, hist_min, hist_max)
         rms_psd_premin_withoutOV = np.mean(rms_psd_withoutOV)
 
 
-
-    # write histogram results
-    # smaller hist_min
-    dfHist.loc[hist_counter,"subject"] = one_participant
-    dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min"] = hist_min-1
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_all_{pre_analysis_time_in_min}min"] = smallRMS_all
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_OV_{pre_analysis_time_in_min}min"] = smallRMS_ov
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_withoutOV_{pre_analysis_time_in_min}min"] = smallRMS_withouOV
+    def writeHistResults(participant, survey, binval, val_all, val_ov, val_notov):
+        dfHist.loc[hist_counter,"subject"] = participant
+        dfHist.loc[hist_counter,"Survey_Filename"] = survey
+        dfHist.loc[hist_counter, f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min"] = binval
+        dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_all_{pre_analysis_time_in_min}min"] = val_all
+        if val_ov is not None:
+            dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_OV_{pre_analysis_time_in_min}min"] = val_ov
+        if val_notov is not None:
+            dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_withoutOV_{pre_analysis_time_in_min}min"] = val_notov
+        
+    writeHistResults(one_participant,survey_filename, hist_min-1, smallRMS_all, smallRMS_ov, smallRMS_withouOV)
 
     hist_counter+=1
     # all hist value
     for hist_val in range(hist_min,hist_max):
-        dfHist.loc[hist_counter,"subject"] = one_participant
-        dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
-        dfHist.loc[hist_counter,f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min"] = hist_val
-        dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_all_{pre_analysis_time_in_min}min"] = hist_result[hist_val-hist_min]
         if len(hist_result_ov) != 0:
-            dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_OV_{pre_analysis_time_in_min}min"] = hist_result_ov[hist_val-hist_min]
+            ovhistentry =  hist_result_ov[hist_val-hist_min]
+        else:
+            ovhistentry = None
         if len(hist_result_withouOV) != 0:
-            dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_withoutOV_{pre_analysis_time_in_min}min"] = hist_result_withouOV[hist_val-hist_min]
-
+            notov_histentry =  hist_result_withouOV[hist_val-hist_min]
+        else:
+            notov_histentry = None
+        
+        writeHistResults(one_participant,survey_filename, hist_val, hist_result[hist_val-hist_min], ovhistentry, notov_histentry)
+        
         hist_counter+=1
         
     #higher hist_max
+    writeHistResults(one_participant,survey_filename, hist_max, highRMS_all, highRMS_ov, highRMS_withouOV)
 
-    dfHist.loc[hist_counter,"subject"] = one_participant
-    dfHist.loc[hist_counter,"Survey_Filename"] = survey_filename
-    dfHist.loc[hist_counter,f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min"] = hist_max
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_all_{pre_analysis_time_in_min}min"] = highRMS_all
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_OV_{pre_analysis_time_in_min}min"] = highRMS_ov
-    dfHist.loc[hist_counter, f"RMS_{weighting_func}_freq_withoutOV_{pre_analysis_time_in_min}min"] = highRMS_withouOV
     hist_counter+=1
 
 #(columns=["subject", "Survey_Filename", f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min",
