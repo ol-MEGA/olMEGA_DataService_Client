@@ -27,7 +27,7 @@ client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 3
-start_survey = 0
+start_survey = 3
 end_survey = 4 # set to -1 for all 
 
 hist_min = 25
@@ -41,18 +41,7 @@ if end_survey == -1:
 #    result_filename = f"Results_EM1_OctavLevel{start_survey}_end"
     histogram_filename = f"Histo_Results_EM1_OctavLevel{start_survey}_end"
 
-#define resulting table for result
-#df = pd.DataFrame(columns=["subject", "Survey_Filename","Survey_Starttime", "Chunk_Starttime", "Correction_Time", "Samplerate",
-#                           f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min",f"RMS{weighting_func}_overall_{pre_analysis_time_in_min}min",
-#                           f"RMS{weighting_func}_OV_only_{pre_analysis_time_in_min}min",f"RMS{weighting_func}_without_OV_{pre_analysis_time_in_min}min", f"RMS{weighting_func}_tones_removed{pre_analysis_time_in_min}min" ] )
-
-#df[["Samplerate",f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min", f"RMS{weighting_func}_overall_{pre_analysis_time_in_min}min", 
-#    f"RMS{weighting_func}_OV_only_{pre_analysis_time_in_min}min", f"RMS{weighting_func}_without_OV_{pre_analysis_time_in_min}min", f"RMS{weighting_func}_tones_removed{pre_analysis_time_in_min}min"]]= df[[
-#        "Samplerate", f"is_valid_{pre_analysis_time_in_min}min", f"OVD_percent_{pre_analysis_time_in_min}min", 
-#        f"RMS{weighting_func}_overall_{pre_analysis_time_in_min}min", f"RMS{weighting_func}_OV_only_{pre_analysis_time_in_min}min", 
-#        f"RMS{weighting_func}_without_OV_{pre_analysis_time_in_min}min", f"RMS{weighting_func}_tones_removed{pre_analysis_time_in_min}min"]].astype(np.float32)
-
-dummy, dummy2, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix(1024,16000,125,8000,1)
+dummy, dummy2, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix(1024,16000,125,4000,1)
 
 #define table for histogram
 entries = []
@@ -284,7 +273,7 @@ for survey_counter in range(start_survey,end_survey):
     nr_of_frames, fft_size = Pxx.shape
     
     #w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
-    octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix(1024,16000,125,8000,1)
+    octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix((fft_size-1)*2,fs,125,4000,1)
 
     octavPSD = (((Pxx+Pyy)*0.5*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
         
@@ -333,7 +322,10 @@ for survey_counter in range(start_survey,end_survey):
             small_allfreq_ov.append(small_result)
             high_allfreq_ov.append(high_result)
         octaveLevel_OV = 10*np.log10(np.mean(octav_psd_ov,axis= 0))
-
+    else:
+        hist_allfreq_ov = list(np.zeros_like(hist_allfreq))
+        small_allfreq_ov = list(np.zeros_like(small_allfreq))
+        high_allfreq_ov = list(np.zeros_like(high_allfreq))
     # without OV
     octaveLevel_notov = []
     hist_allfreq_notov = []
@@ -348,20 +340,30 @@ for survey_counter in range(start_survey,end_survey):
             small_allfreq_notov.append(small_result)
             high_allfreq_notov.append(high_result)
         octaveLevel_notov = 10*np.log10(np.mean(octav_psd_notOV,axis= 0))
+    else:
+        hist_allfreq_notov = list(np.zeros_like(hist_allfreq))
+        small_allfreq_notov = list(np.zeros_like(small_allfreq))
+        high_allfreq_notov = list(np.zeros_like(high_allfreq))
 
     def writeHistResults(participant, survey, binval, val_all, val_ov, val_notov):
         dfHist.loc[hist_counter,"subject"] = participant
         dfHist.loc[hist_counter,"Survey_Filename"] = survey
         dfHist.loc[hist_counter, f"Level_Value_{pre_analysis_time_in_min}min"] = binval
         for counter, fmid in enumerate(f_nominal):
-            dfHist.loc[hist_counter, f"Level_freq_all_{pre_analysis_time_in_min}min_Band{fmid}"] = val_all
-            dfHist.loc[hist_counter, f"Level_freq_ov_{pre_analysis_time_in_min}min_Band{fmid}"] = val_ov
-            dfHist.loc[hist_counter, f"Level_freq_notov_{pre_analysis_time_in_min}min_Band{fmid}"] = val_notov
+            dfHist.loc[hist_counter, f"Level_freq_all_{pre_analysis_time_in_min}min_Band{fmid}"] = val_all[counter]
+            dfHist.loc[hist_counter, f"Level_freq_ov_{pre_analysis_time_in_min}min_Band{fmid}"] = val_ov[counter]
+            dfHist.loc[hist_counter, f"Level_freq_notov_{pre_analysis_time_in_min}min_Band{fmid}"] = val_notov[counter]
         
     writeHistResults(one_participant,survey_filename, hist_min-1, small_allfreq, small_allfreq_ov, small_allfreq_notov)
 
     hist_counter+=1
     # all hist value
+    temp = np.array(hist_allfreq)
+    hist_allfreq = list(temp.transpose())
+    temp = np.array(hist_allfreq_ov)
+    hist_allfreq_ov = list(temp.transpose())
+    temp = np.array(hist_allfreq_notov)
+    hist_allfreq_notov = list(temp.transpose())
     for hist_val in range(hist_min,hist_max):
 #        if len(hist_result_ov) != 0:
 #            ovhistentry =  hist_result_ov[hist_val-hist_min]
@@ -371,8 +373,9 @@ for survey_counter in range(start_survey,end_survey):
 #            notov_histentry =  hist_result_withouOV[hist_val-hist_min]
 #        else:
 #            notov_histentry = None
+        index = int(hist_val-hist_min)
         
-        writeHistResults(one_participant,survey_filename, hist_val, hist_allfreq[hist_val-hist_min,:], hist_allfreq_ov[hist_val-hist_min,:], hist_allfreq_notov[hist_val-hist_min,:])
+        writeHistResults(one_participant,survey_filename, hist_val, hist_allfreq[index], hist_allfreq_ov[index], hist_allfreq_notov[index])
         hist_counter+=1
         
     #higher hist_max
@@ -380,35 +383,10 @@ for survey_counter in range(start_survey,end_survey):
 
     hist_counter+=1
 
-#(columns=["subject", "Survey_Filename", f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min",
-#                      f"RMS_{weighting_func}_freq_all_{pre_analysis_time_in_min}min",f"RMS_{weighting_func}_freq_OV_{pre_analysis_time_in_min}min",
-#                   f"RMS_{weighting_func}_freq_withoutOV_{pre_analysis_time_in_min}min"])    
-    
-#    df.loc[survey_counter,"subject"] = one_participant
-#    df.loc[survey_counter,"Survey_Filename"] = survey_filename
-#    df.loc[survey_counter,"Survey_Starttime"] = time_info
-#    df.loc[survey_counter,"Chunk_Starttime"] = chunk_start_time
-    
-#    if exist_correction_time:
-#        df.loc[survey_counter,"Correction_Time"] = correction_time
-#    else:
-#        df.loc[survey_counter,"Correction_Time"] = -1
-    
- #   df.loc[survey_counter,"Samplerate"] = fs
- #   df.loc[survey_counter,f"is_valid_{pre_analysis_time_in_min}min"] = len(chunks)
- #   df.loc[survey_counter,f"OVD_percent_{pre_analysis_time_in_min}min"] = OVD_percent
- #   df.loc[survey_counter,f"RMS{weighting_func}_overall_{pre_analysis_time_in_min}min"] = rms_psd_premin_all
- #   df.loc[survey_counter,f"RMS{weighting_func}_OV_only_{pre_analysis_time_in_min}min"] = rms_psd_premin_OV
- #   df.loc[survey_counter,f"RMS{weighting_func}_without_OV_{pre_analysis_time_in_min}min"] = rms_psd_premin_withoutOV
- #   df.loc[survey_counter,f"RMS{weighting_func}_tones_removed{pre_analysis_time_in_min}min"] = flag_disturb_tones_removed
-#print(df.head())
-
-#df.to_csv(result_filename + '.csv')
 dfHist.to_csv(histogram_filename + '.csv')
 
 import pyreadstat
 
-#pyreadstat.write_sav(df, result_filename+'.sav')
 pyreadstat.write_sav(dfHist, histogram_filename+'.sav')
 
 

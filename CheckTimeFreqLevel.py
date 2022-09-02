@@ -35,7 +35,9 @@ rmsfreq = np.sqrt(np.sum(Pss)*fs/fft_len)
 print(f'rms freq: {20*np.log10(rmsfreq)}')
 
 # compute a_weigted RMS
+w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
 
+rmsfreqa = 
 
 # compute octav RMS
 
