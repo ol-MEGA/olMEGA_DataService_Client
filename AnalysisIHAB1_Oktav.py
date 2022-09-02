@@ -284,12 +284,12 @@ for survey_counter in range(start_survey,end_survey):
     nr_of_frames, fft_size = Pxx.shape
     
     #w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
+    octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix(1024,16000,125,8000,1)
+
     octavPSD = (((Pxx+Pyy)*0.5*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
         
     # histogram analysis
     
-    
-    # todo build functions to save this histogram to the dataframe
     def get_histogram(data, hist_min = None, hist_max = None, nr_of_bins = -1):
         if hist_min is None:
             hist_min = np.min(data)
