@@ -7,7 +7,7 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 
 callib_val = 93.2
-f0 = 1000
+f0 = 200
 fft_len = 1024
 fs = 16000
 len_s = 1
@@ -34,13 +34,18 @@ print(f'rms time: {20*np.log10(rmstime)}')
 rmsfreq = np.sqrt(np.sum(Pss)*fs/fft_len)
 print(f'rms freq: {20*np.log10(rmsfreq)}')
 
-# compute a_weigted RMS
-w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
+# compute a_weigted RMS time
+b,a = aw.get_weight_coefficients(fs)
+signal_a = sig.lfilter(b,a,signal)
+rmstime_a = np.sqrt(np.mean(signal_a*signal_a))
+print(f'rms(a) time: {20*np.log10(rmstime_a)}')
 
-rmsfreqa = 
 
+# compute a_weigted RMS freq
+w,f = aw.get_fftweight_vector(fft_len,fs,'a','lin')
+rmsfreq_a = np.sqrt(np.sum((Pss*w*w)*fs/fft_len)) # this works because of broadcasting rules in python
+print(f'rms(a) freq: {20*np.log10(rmsfreq_a)}')
+        
 # compute octav RMS
 
-
-# compute onethird RMS  
 
