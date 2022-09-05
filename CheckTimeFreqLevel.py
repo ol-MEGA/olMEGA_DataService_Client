@@ -6,10 +6,10 @@ import pandas as pd
 import scipy.signal as sig
 import matplotlib.pyplot as plt
 
-callib_val = 93.2
-f0 = 200
-fft_len = 1024
-fs = 16000
+# callib_val = 93.2 wird noch nicht genutzt
+f0 = 1000 # Diese Frequenz als Bsp auf 200 aendern
+fft_len = 2048 # hiervon unabhaengig
+fs = 16000 # hiervon unabhaengig
 len_s = 1
 len_samples = len_s*fs
 
@@ -47,5 +47,7 @@ rmsfreq_a = np.sqrt(np.sum((Pss*w*w)*fs/fft_len)) # this works because of broadc
 print(f'rms(a) freq: {20*np.log10(rmsfreq_a)}')
         
 # compute octav RMS
-
+octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix(fft_len,fs,125,4000,1)
+octavPegel = ((Pss*fs/fft_len)@octav_matrix) # this works because of broadcasting rules in python
+print(f'rms Oktavpegel freq: {10*np.log10(octavPegel)}')
 
