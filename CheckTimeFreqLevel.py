@@ -29,7 +29,8 @@ signal = sinsig*2 * 2 ** 0.5
 fig, ax = plt.subplots()
 #ax.plot(signal)
 #plt.show()
-gain = 10**(94/20)
+gain_db = 0
+gain = 10**(gain_db/20)
 signal *= gain
 # compute PSD with window
 freq_vec, Pss = sig.welch(signal,fs,nperseg=fft_len, noverlap=fft_len/2,nfft = fft_len)
@@ -77,9 +78,9 @@ elif fs>=8000 and fs < 16000:
 else:
     print("Samplingrate to low")
     
-a,b,c = mq.loudness_zwst_freq(Pss_final, freq_vec)
+an,bn,c = mq.loudness_zwst_freq(Pss_final, freq_vec)
 #a,b,c = mq.loudness_zwst_freq(np.sqrt(Pss.transpose), freq_vec)
-print(a)
+print(an)
 
 n = len(signal)
 spec = np.abs(2 / np.sqrt(2) / n * scipy.fft.fft(signal)[0:n//2])
@@ -89,4 +90,10 @@ N, N_specific, bark_axis = mq.loudness_zwst_freq(spec, freqs)
 print(N)
 a,b,c = mq.loudness_zwst(signal,fs)
 print(a)
+
+S = mq.sharpness_din_freq(spec, freqs)
+print(S)
+Pss_final = Pss_final.reshape(513,)
+S2 = mq.sharpness_din_freq(Pss_final, freq_vec)
+print(S2)
 
