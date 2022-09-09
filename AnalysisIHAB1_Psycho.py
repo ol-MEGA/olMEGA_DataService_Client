@@ -26,11 +26,14 @@ client = olMEGA_DataService_Client.client(debug = True)
 
 # some parameters
 pre_analysis_time_in_min = 3
-start_survey = 3
+start_survey = 0
 end_survey = 4 # set to -1 for all 
 
-hist_min = 25
-hist_max = 100
+hist_min = 0
+hist_max = 80
+s_hist_min = 0
+s_hist_max = 4
+s_hist_bins = 80
 
 keep_feature_files = False
 
@@ -53,7 +56,8 @@ entries.append(f"Sharpness_freq_notov_{pre_analysis_time_in_min}min")
     
 dfHist = pd.DataFrame(columns = entries)
 dfHist[entries[3:]] = dfHist[entries[3:]].astype(np.int32)
-dfHist[entries[2,6]] = dfHist[entries[2,6]].astype(np.float32)
+dfHist[entries[2]] = dfHist[entries[2]].astype(np.float32)
+dfHist[entries[6]] = dfHist[entries[6]].astype(np.float32)
 
 def get_all_participants(db):
         return db.executeQuery('SELECT DISTINCT Subject FROM EMA_datachunk')
@@ -287,10 +291,13 @@ for survey_counter in range(start_survey,end_survey):
         freq_vec = np.linspace(0,4*fs/2, num = 4*int(fft_size))
     else:
         print("Samplingrate to low")
-        
+
+    loudness_calibration_db = -90
+    loudness_calibration = 10**(loudness_calibration_db/20)
+    stereoPSD_final *= loudness_calibration        
     loudness,N_specific,bark_bands = mq.loudness_zwst_freq(stereoPSD_final, freq_vec)
     #stereoPSD_final = stereoPSD_final.reshape(513,)
-    sharpness = mq.sharpness_din_perseg(stereoPSD_final, freq_vec)
+    sharpness = mq.sharpness_din_from_loudness(loudness, N_specific)
     #print(S2)
        
     # histogram analysis
@@ -311,91 +318,52 @@ for survey_counter in range(start_survey,end_survey):
         smaller_min = len(data[data < hist_min-binwidth*0.5])
         larger_max = len(data[data > hist_max-binwidth*0.5])
         result,bin_edges = np.histogram(data, bins = nr_of_bins, range=(hist_min-0.5,hist_max-0.5))
-        return result, smaller_min, larger_max
+        return result, smaller_min, larger_max, bin_edges
 
     #histogram loudness
-    hist_allfreq = []
-    small_allfreq = []
-    high_allfreq = []
-    hist_result, small_result, high_result = get_histogram(loudness,hist_min,hist_max)
-    hist_allfreq.append(hist_result)
-    small_allfreq.append(small_result)
-    high_allfreq.append(high_result)
+    hist_allfreq, small_allfreq, high_allfreq,dummy = get_histogram(loudness,hist_min,hist_max)
         
     OVD_percent = np.mean(ovd_data)
     # OV
-    octaveLevel_ov = []
-    hist_allfreq_ov = []
-    small_allfreq_ov = []
-    high_allfreq_ov = []
-
     if (OVD_percent>0 and loudness.shape[0] == len(ovd_data)):
-        loudness_ov = loudness[ovd_data[:,0] == 1,:]
-        hist_result, small_result, high_result = get_histogram(loudness_ov,hist_min,hist_max)
-        hist_allfreq_ov.append(hist_result)
-        small_allfreq_ov.append(small_result)
-        high_allfreq_ov.append(high_result)
+        loudness_ov = loudness[ovd_data[:,0] == 1]
+        hist_allfreq_ov, small_allfreq_ov, high_allfreq_ov,dummy = get_histogram(loudness_ov,hist_min,hist_max)
     else:
-        hist_allfreq_ov = list(np.zeros_like(hist_allfreq))
-        small_allfreq_ov = list(np.zeros_like(small_allfreq))
-        high_allfreq_ov = list(np.zeros_like(high_allfreq))
+        hist_allfreq_ov = np.zeros_like(hist_allfreq)
+        small_allfreq_ov = np.zeros_like(small_allfreq)
+        high_allfreq_ov = np.zeros_like(high_allfreq)
     # without OV
-    octaveLevel_notov = []
-    hist_allfreq_notov = []
-    small_allfreq_notov = []
-    high_allfreq_notov = []
 
     if (OVD_percent<1 and loudness.shape[0] == len(ovd_data)):
-        loudness_notOV = loudness[ovd_data[:,0] != 1,:]
-        hist_result, small_result, high_result = get_histogram(loudness_notOV,hist_min,hist_max)
-        hist_allfreq_notov.append(hist_result)
-        small_allfreq_notov.append(small_result)
-        high_allfreq_notov.append(high_result)
+        loudness_notOV = loudness[ovd_data[:,0] != 1]
+        hist_allfreq_notov, small_allfreq_notov, high_allfreq_notov,dummy = get_histogram(loudness_notOV,hist_min,hist_max)
     else:
-        hist_allfreq_notov = list(np.zeros_like(hist_allfreq))
-        small_allfreq_notov = list(np.zeros_like(small_allfreq))
-        high_allfreq_notov = list(np.zeros_like(high_allfreq))
+        hist_allfreq_notov = np.zeros_like(hist_allfreq)
+        small_allfreq_notov = np.zeros_like(small_allfreq)
+        high_allfreq_notov = np.zeros_like(high_allfreq)
 
     #histogram sharpness
-    s_hist_allfreq = []
-    s_small_allfreq = []
-    s_high_allfreq = []
-    s_hist_result, s_small_result, s_high_result = get_histogram(sharpness,hist_min,hist_max)
-    s_hist_allfreq.append(s_hist_result)
-    s_small_allfreq.append(s_small_result)
-    s_high_allfreq.append(s_high_result)
+    s_hist_allfreq, s_small_allfreq, s_high_allfreq, s_bins = get_histogram(sharpness,s_hist_min,s_hist_max,s_hist_bins)
         
     OVD_percent = np.mean(ovd_data)
     # OV
-    s_hist_allfreq_ov = []
-    s_small_allfreq_ov = []
-    s_high_allfreq_ov = []
 
     if (OVD_percent>0 and sharpness.shape[0] == len(ovd_data)):
-        sharpness_ov = sharpness[ovd_data[:,0] == 1,:]
-        hist_result, small_result, high_result = get_histogram(sharpness_ov,hist_min,hist_max)
-        s_hist_allfreq_ov.append(hist_result)
-        s_small_allfreq_ov.append(small_result)
-        s_high_allfreq_ov.append(high_result)
+        sharpness_ov = sharpness[ovd_data[:,0] == 1]
+        s_hist_allfreq_ov, s_small_allfreq_ov, s_high_allfreq_ov,dummy = get_histogram(sharpness_ov,s_hist_min,s_hist_max,s_hist_bins)
     else:
-        s_hist_allfreq_ov = list(np.zeros_like(s_hist_allfreq))
-        s_small_allfreq_ov = list(np.zeros_like(s_small_allfreq))
-        s_high_allfreq_ov = list(np.zeros_like(s_high_allfreq))
+        s_hist_allfreq_ov = np.zeros_like(s_hist_allfreq)
+        s_small_allfreq_ov = np.zeros_like(s_small_allfreq)
+        s_high_allfreq_ov = np.zeros_like(s_high_allfreq)
     # without OV
-    s_hist_allfreq_notov = []
-    s_small_allfreq_notov = []
-    s_high_allfreq_notov = []
 
     if (OVD_percent<1 and sharpness.shape[0] == len(ovd_data)):
-        sharpness_notOV = sharpness[ovd_data[:,0] != 1,:]
-        hist_result, small_result, high_result = get_histogram(sharpness_notOV,hist_min,hist_max)
-        s_hist_allfreq_notov.append(hist_result)
-        s_small_allfreq_notov.append(small_result)
-        s_high_allfreq_notov.append(high_result)
+        sharpness_notOV = sharpness[ovd_data[:,0] != 1]
+        s_hist_allfreq_notov, s_small_allfreq_notov, s_high_allfreq_notov,dummy = get_histogram(sharpness_notOV,s_hist_min,s_hist_max,s_hist_bins)
     else:
-        s_hist_allfreq_notov = list(np.zeros_like(s_hist_allfreq))
-        s_small_allfreq_notov = list(np.zeros_like(s_small_allfreq))
-        s_high_allfreq_notov = list(np.zeros_like(s_high_allfreq))
+        s_hist_allfreq_notov = np.zeros_like(s_hist_allfreq)
+        s_small_allfreq_notov = np.zeros_like(s_small_allfreq)
+        s_high_allfreq_notov = np.zeros_like(s_high_allfreq)
 
     def writeHistResultsLoudness(participant, survey, binval, val_all, val_ov, val_notov):
         dfHist.loc[hist_counter,"subject"] = participant
@@ -414,26 +382,18 @@ for survey_counter in range(start_survey,end_survey):
         dfHist.loc[hist_counter, f"Sharpness_freq_notov_{pre_analysis_time_in_min}min"] = val_notov
         
     writeHistResultsLoudness(one_participant,survey_filename, hist_min-1, small_allfreq, small_allfreq_ov, small_allfreq_notov)
-    writeHistResultsSharpness(one_participant,survey_filename, hist_min-1, s_small_allfreq, s_small_allfreq_ov, s_small_allfreq_notov)
+    writeHistResultsSharpness(one_participant,survey_filename, s_hist_min-1, s_small_allfreq, s_small_allfreq_ov, s_small_allfreq_notov)
 
     hist_counter+=1
-    # all hist value
-    temp = np.array(hist_allfreq)
-    hist_allfreq = list(temp.transpose())
-    temp = np.array(hist_allfreq_ov)
-    hist_allfreq_ov = list(temp.transpose())
-    temp = np.array(hist_allfreq_notov)
-    hist_allfreq_notov = list(temp.transpose())
     for hist_val in range(hist_min,hist_max):
         index = int(hist_val-hist_min)
-        
         writeHistResultsLoudness(one_participant,survey_filename, hist_val, hist_allfreq[index], hist_allfreq_ov[index], hist_allfreq_notov[index])
-        writeHistResultsSharpness(one_participant,survey_filename, hist_val, s_hist_allfreq[index], s_hist_allfreq_ov[index], s_hist_allfreq_notov[index])
+        writeHistResultsSharpness(one_participant,survey_filename, s_bins[index], s_hist_allfreq[index], s_hist_allfreq_ov[index], s_hist_allfreq_notov[index])
         hist_counter+=1
         
     #higher hist_max
     writeHistResultsLoudness(one_participant,survey_filename, hist_max, high_allfreq, high_allfreq_ov, high_allfreq_notov)
-    writeHistResultsSharpness(one_participant,survey_filename, hist_max, s_high_allfreq, s_high_allfreq_ov, s_high_allfreq_notov)
+    writeHistResultsSharpness(one_participant,survey_filename, s_hist_max, s_high_allfreq, s_high_allfreq_ov, s_high_allfreq_notov)
 
     hist_counter+=1
 

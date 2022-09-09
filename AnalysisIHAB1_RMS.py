@@ -15,7 +15,7 @@ from operator import itemgetter
 from olMEGA_DataService_Tools import FeatureFile
 from olMEGA_DataService_Tools import acousticweighting as aw
 from olMEGA_DataService_Tools import freq2freqtransforms as freqt
-
+import mosqito as mq
 
 import numpy as np
 import pandas as pd
@@ -66,6 +66,21 @@ for counter, fmid in enumerate(f_nominal):
     entries.append(f"OctavLevel_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}")
     entries.append(f"OctavLevel_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}")
     entries.append(f"OctavLevel_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}")
+
+entries.append(f"Loudness_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Loudness_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Sharpness_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Sharpness_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Loudness_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Loudness_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Sharpness_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Sharpness_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Loudness_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Loudness_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Sharpness_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+entries.append(f"Sharpness_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min")
+
+
 
 df = pd.DataFrame(columns= entries)
 df[entries[6:]] = df[entries[6:]].astype(np.float32)
@@ -304,6 +319,30 @@ for survey_counter in range(start_survey,end_survey):
     octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix((fft_size-1)*2,fs,125,fmax_oktavanalysis,1)
     octavLevel = (((Pxx+Pyy)*w*w*0.5*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
     
+    stereoPSD = (Pxx+Pyy)*0.5
+    stereoPSD = np.sqrt(stereoPSD)*np.sqrt(fs/((fft_size-1)*2))
+    stereoPSD = stereoPSD.transpose()
+    if fs >= 32000:
+        stereoPSD_final = stereoPSD
+        freq_vec = np.linspace(0,fs/2, num = int(fft_size))
+    elif fs>=16000 and fs < 32000:
+        stereoPSD_final = np.zeros((2*stereoPSD.shape[0], stereoPSD.shape[1]))
+        stereoPSD_final[0:stereoPSD.shape[0],:] = stereoPSD/np.sqrt(2)
+        freq_vec = np.linspace(0,2*fs/2, num = 2*int(fft_size))
+    elif fs>=8000 and fs < 16000:
+        stereoPSD_final = np.zeros((4*stereoPSD.shape[0], stereoPSD.shape[1]))
+        stereoPSD_final[0:stereoPSD.shape[0],:] = stereoPSD/2
+        freq_vec = np.linspace(0,4*fs/2, num = 4*int(fft_size))
+    else:
+        print("Samplingrate to low")
+
+    loudness_calibration_db = -90
+    loudness_calibration = 10**(loudness_calibration_db/20)
+    stereoPSD_final *= loudness_calibration        
+    loudness,N_specific,bark_bands = mq.loudness_zwst_freq(stereoPSD_final, freq_vec)
+    #stereoPSD_final = stereoPSD_final.reshape(513,)
+    sharpness = mq.sharpness_din_from_loudness(loudness, N_specific)
+    
     # todo build functions to save this histogram to the dataframe
     def get_histogram(data, hist_min = None, hist_max = None, nr_of_bins = -1):
         if hist_min is None:
@@ -329,6 +368,11 @@ for survey_counter in range(start_survey,end_survey):
     octavLevel_mean_all = np.mean(octavLevel)
     octavLevel_var_all = np.var(10*np.log10(octavLevel))
     
+    loudness_mean_all = np.mean(loudness)
+    loudness_var_all = np.var(loudness)
+    sharpness_mean_all = np.mean(sharpness)
+    sharpness_var_all = np.var(sharpness)
+    
     OVD_percent = np.mean(ovd_data)
     # OV
     rms_psd_premin_OV = None
@@ -347,6 +391,14 @@ for survey_counter in range(start_survey,end_survey):
         octavLevel_mean_ov = np.mean(octavLevel_ov)
         octavLevel_var_ov = np.var(10*np.log10(octavLevel_ov))
 
+        loudness_ov = loudness[ovd_data[:,0] == 1]
+        sharpness_ov = sharpness[ovd_data[:,0] == 1]
+        loudness_mean_ov = np.mean(loudness_ov)
+        loudness_var_ov = np.var(loudness_ov)
+        sharpness_mean_ov = np.mean(sharpness_ov)
+        sharpness_var_ov = np.var(sharpness_ov)
+        
+
     # without OV
     rms_psd_premin_withoutOV = None
     smallRMS_withouOV = None
@@ -362,6 +414,12 @@ for survey_counter in range(start_survey,end_survey):
         octavLevel_notov = octavLevel[ovd_data[:,0] != 1]
         octavLevel_mean_notov = np.mean(octavLevel_notov)
         octavLevel_var_notov = np.var(10*np.log10(octavLevel_notov))
+        loudness_notov = loudness[ovd_data[:,0] != 1]
+        sharpness_notov = sharpness[ovd_data[:,0] != 1]
+        loudness_mean_notov = np.mean(loudness_notov)
+        loudness_var_notov = np.var(loudness_notov)
+        sharpness_mean_notov = np.mean(sharpness_notov)
+        sharpness_var_notov = np.var(sharpness_notov)
 
 
     def writeHistResults(participant, survey, binval, val_all, val_ov, val_notov):
@@ -432,6 +490,19 @@ for survey_counter in range(start_survey,end_survey):
         else:
             df.loc[survey_counter,f"OctavLevel_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = None
         df.loc[survey_counter,f"OctavLevel_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_notov)
+
+    df.loc[survey_counter,f"Loudness_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_mean_all
+    df.loc[survey_counter,f"Loudness_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_var_all
+    df.loc[survey_counter,f"Sharpness_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = sharpness_mean_all
+    df.loc[survey_counter,f"Sharpness_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = sharpness_var_all
+    df.loc[survey_counter,f"Loudness_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_mean_ov
+    df.loc[survey_counter,f"Loudness_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_var_ov
+    df.loc[survey_counter,f"Sharpness_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = sharpness_mean_ov
+    df.loc[survey_counter,f"Sharpness_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = sharpness_var_ov
+    df.loc[survey_counter,f"Loudness_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_mean_notov
+    df.loc[survey_counter,f"Loudness_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_var_notov
+    df.loc[survey_counter,f"Sharpness_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = sharpness_mean_notov
+    df.loc[survey_counter,f"Sharpness_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = sharpness_var_notov
 
 #print(df.head())
 
