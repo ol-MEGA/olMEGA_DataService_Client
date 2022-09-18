@@ -455,9 +455,6 @@ for survey_counter in range(start_survey,end_survey):
 
     hist_counter+=1
 
-#(columns=["subject", "Survey_Filename", f"RMS_{weighting_func}_Value_{pre_analysis_time_in_min}min",
-#                      f"RMS_{weighting_func}_freq_all_{pre_analysis_time_in_min}min",f"RMS_{weighting_func}_freq_OV_{pre_analysis_time_in_min}min",
-#                   f"RMS_{weighting_func}_freq_withoutOV_{pre_analysis_time_in_min}min"])    
     
     df.loc[survey_counter,"subject"] = one_participant
     df.loc[survey_counter,"Survey_Filename"] = survey_filename
