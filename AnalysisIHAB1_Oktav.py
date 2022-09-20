@@ -271,11 +271,17 @@ for survey_counter in range(start_survey,end_survey):
     flag_disturb_tones_removed = flag or flag2
     
     nr_of_frames, fft_size = Pxx.shape
+    if fs == 8000:
+        magicPSDconvert = 0.4
+        magicPSDconvertCorrect = 24
+    elif fs == 24000:
+        magicPSDconvert = 0.3
+        magicPSDconvertCorrect = 28
     
     #w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
     octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix((fft_size-1)*2,fs,125,4000,1)
 
-    octavPSD = (((Pxx+Pyy)*0.5*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
+    octavPSD = (((Pxx+Pyy)*magicPSDconvert*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
         
     # histogram analysis
     

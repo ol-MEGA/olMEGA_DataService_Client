@@ -48,7 +48,27 @@ refMic_signal, fs = sf.read(insig_sin_0db)
 level_refMic_signal_dBFS = 10*np.log10(np.mean(refMic_signal[:, 1]**2))
 level_refMic_signal_SPL = level_refMic_signal_dBFS + calib_const_dBFS
 
-file_system_sinus = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0919/Sys1_Aku_Data//000170_20220919_122709775.wav'
+fs = 24000
+is_sin_signal = False
+
+if fs == 24000 and is_sin_signal == True:
+    file_system_sinus = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_Aku_Data/000208_20220920_144853429.wav'
+    feat_rmsfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920//Sys1_features/RMS_000208_20220920_144853429.feat'
+    feat_psdfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_features/PSD_000208_20220920_144853429.feat'
+elif fs == 8000 and is_sin_signal == True:
+    file_system_sinus = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_Aku_Data/000230_20220920_150438203.wav'
+    feat_rmsfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920//Sys1_features/RMS_000230_20220920_150438203.feat'
+    feat_psdfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_features/PSD_000230_20220920_150438203.feat'
+elif fs == 24000 and is_sin_signal == False:
+    file_system_sinus = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_Aku_Data/000213_20220920_145353672.wav'
+    feat_rmsfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920//Sys1_features/RMS_000213_20220920_145353672.feat'
+    feat_psdfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_features/PSD_000213_20220920_145353672.feat'
+elif fs == 8000 and is_sin_signal == False:
+    file_system_sinus = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_Aku_Data/000228_20220920_150238194.wav'
+    feat_rmsfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920//Sys1_features/RMS_000228_20220920_150238194.feat'
+    feat_psdfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0920/Sys1_features/PSD_000228_20220920_150238194.feat'
+
+
 system_signal, fs = sf.read(file_system_sinus)
 level_system_signal_dBFS_0 = 10*np.log10(np.mean(system_signal[:, 0]**2))
 level_system_signal_dBFS_1 = 10*np.log10(np.mean(system_signal[:, 1]**2))
@@ -62,7 +82,6 @@ Calib_gain_0 = 10**(CalibConst_Sys_0/20)
 Calib_gain_1 = 10**(CalibConst_Sys_1/20)
 
 # RMS FEat
-feat_rmsfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0919/Sys1_features/RMS_000170_20220919_122709775.feat'
 rmsfeat = ff.load(feat_rmsfile)
 rms_data = rmsfeat.data.copy()
 rms_data[:,0] *= Calib_gain_0
@@ -71,7 +90,6 @@ rms_meanvals = 20*np.log10(np.mean(rms_data, axis=0))
 # scheint auch zu stimmen (Übereinstimmung mit ) 
 
 # PSD FEat
-feat_psdfile = '/home/bitzer/Nextcloud/Shares/CalibolMEGA/System1gelb2022_0919/Sys1_features/PSD_000170_20220919_122709775.feat'
 
 psdfile = ff.load(feat_psdfile)
 psd_data = psdfile.data.copy()
@@ -82,31 +100,44 @@ Pyy = psd_data[:, n[0] + n[1] : ]
 Pxx *= Calib_gain_0*Calib_gain_0
 Pyy *= Calib_gain_1*Calib_gain_1
 
+if fs == 8000:
+    magicPSDconvert = 0.4
+    magicPSDconvertCorrect = 24
+elif fs == 24000:
+    magicPSDconvert = 0.3
+    magicPSDconvertCorrect = 28
+
+
 nr_of_frames, fft_size = Pxx.shape                    
 w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,'z','lin')
-meanPSD = (((Pxx)*fs)*w*w)*0.4 # this works because of broadcasting rules in python 0.2 magic number to get the correct results
+meanPSD = (((Pxx)*fs)*w*w)*magicPSDconvert # this works because of broadcasting rules in python magicPSDconvert magic number to get the correct results
 rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
-meanPSD2 = (((Pyy)*fs)*w*w)*0.4 # this works because of broadcasting rules in python
+meanPSD2 = (((Pyy)*fs)*w*w)*magicPSDconvert # this works because of broadcasting rules in python
 rms_psd2 = 10*np.log10(np.mean((meanPSD2), axis=1)) # mean over frequency
 print(f'rms freq_old: {np.mean(rms_psd[:-2],)}')
 print(f'rms freq_old: {np.mean(rms_psd2[:-2],)}')
 
 
 
-rmsfreq = np.sqrt(np.sum(Pxx)*fs/((fft_size-1)*2))/24 # 24 magic number
+rmsfreq = np.sqrt(np.sum(Pxx)*fs/((fft_size-1)*2))/magicPSDconvertCorrect # 24 magic number
 print(f'rms freq_correct: {20*np.log10(rmsfreq)}')
-rmsfreq2 = np.sqrt(np.sum(Pyy)*fs/((fft_size-1)*2))/24
+rmsfreq2 = np.sqrt(np.sum(Pyy)*fs/((fft_size-1)*2))/magicPSDconvertCorrect
 print(f'rms freq_correct: {20*np.log10(rmsfreq2)}')
 
 
-meanPSD = (((Pxx+Pyy)*0.5*fs)*w*w)*0.4 # this works because of broadcasting rules in python
+
+meanPSD = (((Pxx+Pyy)*0.5*fs)*w*w)*magicPSDconvert # this works because of broadcasting rules in python
     
 rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
 octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix((fft_size-1)*2,fs,125,4000,1)
-octavLevel = (((Pxx+Pyy)*w*w*0.4*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
+octavLevel = (((Pxx+Pyy)*w*w*magicPSDconvert*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
 print(f'rms Oktavpegel freq: {10*np.log10(octavLevel)}')
 
-stereoPSD = (Pxx+Pyy)*0.5
+if fs == 8000: #very magic numbers here
+    stereoPSD = (Pxx+Pyy)*0.5
+elif fs == 24000:
+    stereoPSD = (Pxx+Pyy)*0.5*0.35
+
 stereoPSD = np.sqrt(stereoPSD)*np.sqrt(fs/((fft_size-1)*2))
 stereoPSD = stereoPSD.transpose()
 if fs >= 32000:

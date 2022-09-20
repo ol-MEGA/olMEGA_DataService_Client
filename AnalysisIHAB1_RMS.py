@@ -312,14 +312,27 @@ for survey_counter in range(start_survey,end_survey):
     flag_disturb_tones_removed = flag or flag2
     
     nr_of_frames, fft_size = Pxx.shape
+
+    if fs == 8000:
+        magicPSDconvert = 0.4
+        magicPSDconvertCorrect = 24
+    elif fs == 24000:
+        magicPSDconvert = 0.3
+        magicPSDconvertCorrect = 28
+
+
     w,f = aw.get_fftweight_vector((fft_size-1)*2,fs,weighting_func,'lin')
-    meanPSD = (((Pxx+Pyy)*0.5*fs)*w*w)*0.25 # this works because of broadcasting rules in python
+    meanPSD = (((Pxx+Pyy)*0.5*fs)*w*w)*magicPSDconvert # this works because of broadcasting rules in python magicPSDconvert magic number to get the correct results
         
     rms_psd = 10*np.log10(np.mean((meanPSD), axis=1)) # mean over frequency
     octav_matrix, f_mid, f_nominal = freqt.get_spectrum_fractionaloctave_transformmatrix((fft_size-1)*2,fs,125,fmax_oktavanalysis,1)
-    octavLevel = (((Pxx+Pyy)*w*w*0.5*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
+    octavLevel = (((Pxx+Pyy)*w*w*magicPSDconvert*fs/((fft_size-1)*2))@octav_matrix) # this works because of broadcasting rules in python
     
-    stereoPSD = (Pxx+Pyy)*0.5
+    if fs == 8000: #very magic numbers here
+        stereoPSD = (Pxx+Pyy)*0.5
+    elif fs == 24000:
+        stereoPSD = (Pxx+Pyy)*0.5*0.35
+    
     stereoPSD = np.sqrt(stereoPSD)*np.sqrt(fs/((fft_size-1)*2))
     stereoPSD = stereoPSD.transpose()
     if fs >= 32000:
@@ -336,7 +349,7 @@ for survey_counter in range(start_survey,end_survey):
     else:
         print("Samplingrate to low")
 
-    loudness_calibration_db = -90
+    loudness_calibration_db = -89
     loudness_calibration = 10**(loudness_calibration_db/20)
     stereoPSD_final *= loudness_calibration        
     loudness,N_specific,bark_bands = mq.loudness_zwst_freq(stereoPSD_final, freq_vec)
