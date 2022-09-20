@@ -260,7 +260,8 @@ for survey_counter in range(start_survey,end_survey):
                 print(peaks)
                 peaks_all = []
                 for p in peaks:
-                    peaks_ext = p + np.arange(-5,5)
+                    ext_max = np.min([5,512-p])
+                    peaks_ext = p + np.arange(-5,ext_max)
                     peaks_all.extend(peaks_ext)
             
                 PSDSpectrum[:,peaks_all] = 0
