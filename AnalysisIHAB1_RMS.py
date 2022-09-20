@@ -31,8 +31,8 @@ client = olMEGA_DataService_Client.client(debug = True)
 # some parameters
 pre_analysis_time_in_min = 3
 weighting_func = 'z'
-start_survey = 0
-end_survey = 4 # set to -1 for all 
+start_survey = 251
+end_survey = 253 # set to -1 for all 
 fmax_oktavanalysis = 4000
 hist_min = 25
 hist_max = 100
@@ -301,7 +301,8 @@ for survey_counter in range(start_survey,end_survey):
                 print(peaks)
                 peaks_all = []
                 for p in peaks:
-                    peaks_ext = p + np.arange(-5,5)
+                    ext_max = np.min([5,512-p])
+                    peaks_ext = p + np.arange(-5,ext_max)
                     peaks_all.extend(peaks_ext)
             
                 PSDSpectrum[:,peaks_all] = 0
