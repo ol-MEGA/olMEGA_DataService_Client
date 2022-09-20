@@ -5,6 +5,8 @@ script and function to analyse ovd percent and RMS(a) for 5 minutes of data at t
 License: BSD 3-clause
 Version 1.0.0 JB 19.01.2022
 Version 1.1.0 JB 20.01.2022 added histogram analysis
+Version 1.2 JB correct calibration for IHAB data and added octav analysis and psychoacoustic measures
+
 """
 from gettext import npgettext
 from time import strptime
