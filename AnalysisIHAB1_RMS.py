@@ -50,7 +50,6 @@ if end_survey == -1:
 entries = []
 entries.append("subject")
 entries.append("Survey_Filename")
-entries.append("Survey_Filename")
 entries.append("Survey_Starttime")
 entries.append("Chunk_Starttime")
 entries.append("Correction_Time")
@@ -85,7 +84,7 @@ entries.append(f"Sharpness_var_notov_RMS{weighting_func}_{pre_analysis_time_in_m
 
 
 df = pd.DataFrame(columns= entries)
-df[entries[6:]] = df[entries[6:]].astype(np.float32)
+df[entries[5:]] = df[entries[5:]].astype(np.float32)
 
 entriesH = []
 entriesH.append("subject")
@@ -380,8 +379,8 @@ for survey_counter in range(start_survey,end_survey):
     hist_result, smallRMS_all, highRMS_all = get_histogram(rms_psd,hist_min,hist_max)
     rms_psd_premin_all = np.mean(rms_psd)
     
-    octavLevel_mean_all = np.mean(octavLevel)
-    octavLevel_var_all = np.var(10*np.log10(octavLevel))
+    octavLevel_mean_all = np.mean(octavLevel, axis=0)
+    octavLevel_var_all = np.var(10*np.log10(octavLevel), axis = 0)
     
     loudness_mean_all = np.mean(loudness)
     loudness_var_all = np.var(loudness)
@@ -403,8 +402,8 @@ for survey_counter in range(start_survey,end_survey):
         rms_psd_premin_OV = np.mean(rms_psd_ov)
 
         octavLevel_ov = octavLevel[ovd_data[:,0] == 1]
-        octavLevel_mean_ov = np.mean(octavLevel_ov)
-        octavLevel_var_ov = np.var(10*np.log10(octavLevel_ov))
+        octavLevel_mean_ov = np.mean(octavLevel_ov, axis = 0)
+        octavLevel_var_ov = np.var(10*np.log10(octavLevel_ov), axis = 0)
 
         loudness_ov = loudness[ovd_data[:,0] == 1]
         sharpness_ov = sharpness[ovd_data[:,0] == 1]
@@ -427,8 +426,8 @@ for survey_counter in range(start_survey,end_survey):
         hist_result_withouOV, smallRMS_withouOV, highRMS_withouOV = get_histogram(rms_psd_withoutOV, hist_min, hist_max)
         rms_psd_premin_withoutOV = np.mean(rms_psd_withoutOV)
         octavLevel_notov = octavLevel[ovd_data[:,0] != 1]
-        octavLevel_mean_notov = np.mean(octavLevel_notov)
-        octavLevel_var_notov = np.var(10*np.log10(octavLevel_notov))
+        octavLevel_mean_notov = np.mean(octavLevel_notov, axis = 0)
+        octavLevel_var_notov = np.var(10*np.log10(octavLevel_notov), axis = 0)
         loudness_notov = loudness[ovd_data[:,0] != 1]
         sharpness_notov = sharpness[ovd_data[:,0] != 1]
         loudness_mean_notov = np.mean(loudness_notov)
@@ -490,18 +489,21 @@ for survey_counter in range(start_survey,end_survey):
     df.loc[survey_counter,f"RMS{weighting_func}_tones_removed{pre_analysis_time_in_min}min"] = flag_disturb_tones_removed
 
     for counter, fmid in enumerate(f_nominal):
-        df.loc[survey_counter,f"OctavLevel_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = 10*np.log10(octavLevel_mean_all)
-        df.loc[survey_counter,f"OctavLevel_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_all)
+        df.loc[survey_counter,f"OctavLevel_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = 10*np.log10(octavLevel_mean_all[counter])
+        df.loc[survey_counter,f"OctavLevel_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_all[counter])
         if octavLevel_mean_ov is not None:
-            df.loc[survey_counter,f"OctavLevel_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = 10*np.log10(octavLevel_mean_ov)
+            df.loc[survey_counter,f"OctavLevel_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = 10*np.log10(octavLevel_mean_ov[counter])
+            df.loc[survey_counter,f"OctavLevel_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_ov[counter])
         else:
             df.loc[survey_counter,f"OctavLevel_mean_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = None    
-        df.loc[survey_counter,f"OctavLevel_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_ov)
+            df.loc[survey_counter,f"OctavLevel_var_ov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = None
         if octavLevel_mean_notov is not None:
-            df.loc[survey_counter,f"OctavLevel_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = 10*np.log10(octavLevel_mean_notov)
+            df.loc[survey_counter,f"OctavLevel_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = 10*np.log10(octavLevel_mean_notov[counter])
+            df.loc[survey_counter,f"OctavLevel_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_notov[counter])
         else:
             df.loc[survey_counter,f"OctavLevel_mean_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = None
-        df.loc[survey_counter,f"OctavLevel_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = (octavLevel_var_notov)
+            df.loc[survey_counter,f"OctavLevel_var_notov_RMS{weighting_func}_{pre_analysis_time_in_min}min_Band{fmid}"] = None
+
 
     df.loc[survey_counter,f"Loudness_mean_all_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_mean_all
     df.loc[survey_counter,f"Loudness_var_all_RMS{weighting_func}_{pre_analysis_time_in_min}min"] = loudness_var_all
