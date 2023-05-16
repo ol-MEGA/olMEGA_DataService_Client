@@ -51,6 +51,6 @@ for file_counter, onefilename in enumerate(list_of_resultfiles):
 all_df = pd.concat(all_df_list)
 
 result_filename = os.path.join(startdir,'AllResults')
-df.to_csv(result_filename + '.csv')
+all_df.to_csv(result_filename + '.csv')
 
-pyreadstat.write_sav(df, result_filename+'.sav')
+pyreadstat.write_sav(all_df, result_filename+'.sav')
