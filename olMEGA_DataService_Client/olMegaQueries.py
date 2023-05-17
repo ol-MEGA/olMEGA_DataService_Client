@@ -159,6 +159,20 @@ def get_data_for_files_in_dict(db, file_dict, keep_files = False):
         alldata = np.stack(alldata_stacked, axis=0).reshape((nrofchunks*size_of_data[0],size_of_data[1]))
         return alldata, alldata_stacked, featdata.fs
 
+def get_data_for_files_in_onedict(db, file_dict, keep_files = False):
+        db.downloadFiles("./tmp", file_dict, True)
+        # load all files
+        filename = "./tmp/" + file_dict[0]['subject'] + '/' + file_dict[0]['filename']
+        featdata = FeatureFile.load(filename)
+        data = featdata.data
+        if not keep_files:
+            os.remove(filename)
+                
+        #nrofchunks = len(alldata_stacked)
+        #size_of_data = alldata_stacked[0].shape
+        #alldata = np.stack(alldata_stacked, axis=0).reshape((nrofchunks*size_of_data[0],size_of_data[1]))
+        return data, featdata.fs
+
 def load_data_for_files_in_dict(file_dict):
         # load all files
         alldata_stacked = []
