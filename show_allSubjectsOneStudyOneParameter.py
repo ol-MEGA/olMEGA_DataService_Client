@@ -29,6 +29,8 @@ from datetime import datetime, timedelta
 
 from time import strptime
 import matplotlib.dates as md
+from matplotlib.backends.backend_pdf import PdfPages
+
 xfmt = md.DateFormatter('%H:%M')
 
 def adjust_lightness(color, amount=0.5):
@@ -49,61 +51,139 @@ def find_file_recursiv(start_dir, seach_string):
                 pys.append(os.path.join(p,file))
     return pys
 
+def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
+#print (one_day_data)
+
+    extracted_data_oneday = one_day[extract_param].to_numpy()
+    starttime_list = one_day["startdate"].to_list()
+    starttime_vec = []
+    deltatime_vec = []
+    lastTime = datetime(year=2000, month=1,day=1, hour=0, minute=0,second=0)
+    for kk, onetimestring in enumerate(starttime_list):
+        dt = datetime.strptime(onetimestring,'%Y-%m-%d %H:%M:%S')
+        dt = dt.replace(year = 2000, month = 1, day = 1)
+        starttime_vec.append(dt)
+        deltatime = dt - lastTime
+        lastTime = dt
+        deltatime_vec.append(int(deltatime.total_seconds()))
+    
+
+    delta = np.array(deltatime_vec)
+    index = np.where(delta > min_len*60)[0] # *60 da delta in seconds
+    index = np.append(index, len(starttime_vec))
+    if (len(index) > 0):
+        oldindex = 0
+        cont_chunks_data = []
+        cont_chunks_time = []
+        for counter, index_nr in enumerate(index):
+            if index_nr - oldindex < min_len:
+                oldindex = index_nr    
+                continue
+            else:
+                startindex = oldindex+1
+                endindex = index_nr-1
+                data = extracted_data_oneday[startindex:endindex]
+                timevec = starttime_vec[startindex:endindex]
+                cont_chunks_data.append(data)
+                cont_chunks_time.append(timevec)
+                oldindex = index_nr 
+
+    return cont_chunks_data, cont_chunks_time
+
+
 startdir = './results'
+study = 'EMA2'
+variable = "varPegel"
+#variable = "OVD_percent"
+
+startdir = os.path.join(startdir,study)
 
 list_of_resultfiles = find_file_recursiv(startdir,'.json')
 all_df_list = []
 #for file_counter, onefilename in enumerate(list_of_resultfiles):
-onefilename = list_of_resultfiles[5]
+for file_counter, onefilename in enumerate(list_of_resultfiles):
+    with open(onefilename, 'r') as fout:
+        data = json.load(fout)
 
-with open(onefilename, 'r') as fout:
-    data = json.load(fout)
+    #onedict = data[0]
+
     df = pd.DataFrame(data, index=list(range(len(data))))
+    all_df_list.append(df)
 
-fs = df.loc[0]["fs"]
-print(fs)
+all_df = pd.concat(all_df_list)
 
-pegelday = df["meanPegel"].to_numpy()
+global_data = all_df[variable].to_numpy()
 
-dynamics = df["perc95"].to_numpy() - df["perc5"].to_numpy()
-
-starttime_list = df["startdate"].to_list()
-
-starttime_vec = []
-for kk, onetimestring in enumerate(starttime_list):
-    dt = datetime.strptime(onetimestring,'%Y-%m-%d %H:%M:%S')
-    dt = dt.replace(year = 2000, month = 1, day = 1)
-    starttime_vec.append(dt)
-
-        
-# .strftime('%H:%M')
-fig, ax = plt.subplots(nrows=2)
-#fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True)
-
-NUM_COLORS = 20 # adjust to subjects
-
-# lighter for EMA1
-# darker for EMA2
-# alpha lets see, what looks good
+robust_min_maxval = np.percentile(global_data,[2, 99])
 
 
+subjects = all_df["subject"].unique()
+
+NUM_COLORS = len(subjects) # adjust to subjects
 cm = plt.get_cmap('gist_rainbow')
 newcolor=[cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
-ax[0].plot(dynamics, color = adjust_lightness(newcolor[1],1.4), alpha = 0.5)
-ax[0].set_xticks([])
-ax[1].plot(starttime_vec, pegelday,  color = adjust_lightness(newcolor[4],1.4), alpha = 0.5)
-#ax.set_xticklabels(ax.get_xticks(), rotation = 45)
-ax[1].xaxis.set_major_formatter(xfmt)
-ax[1].tick_params(axis='x', rotation=45)
+
+fig, ax = plt.subplots()
+for subject_counter, onesubject in enumerate(subjects):
+    data_onesubject = all_df.query(f"subject=='{onesubject}'")
+    #data_onesubject = all_df.query("subject=='EK06DI26'")
+    #data_onesubject = all_df["subject"=="EK06DI26"]
+    days = data_onesubject["day"].unique()
+    lightning = 0.7
+    for day_counter in range(len(days)):
+        one_day_data =  data_onesubject.query(f"day=={day_counter}")
+        
+        cont_chunks_data, cont_chunks_time =  get_continous_chunk_data_and_time(one_day_data,variable   )
+
+        lightning += 0.2
+        for chunk_counter, chunk_data in enumerate(cont_chunks_data):
+            ax.plot(cont_chunks_time[chunk_counter], chunk_data,  color = adjust_lightness(newcolor[subject_counter],lightning), alpha = 0.2)
+        
+
+ax.set_xlim(
+    xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+    xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+)
+ax.set_ylim(
+    ymin= np.round(0.95*robust_min_maxval[0]),
+    ymax= np.round(1.05*robust_min_maxval[1])
+)
+titletext = f'{study}, {variable}'
+ax.set_title(titletext)
+
+ax.xaxis.set_major_formatter(xfmt)
+
+ax.tick_params(axis='x', rotation=45)
+
+pdf_filename = f'{variable}_AllSubjects_{study}.pdf'
+text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
+outpdf = PdfPages(pdf_filename)
+outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
+outpdf.savefig(fig) # ohne () saves the current figure
+outpdf.close()
+
 plt.show()
 
 
-#plt.xlim(
-#    xmin=datetime.datetime(2017, 1, 4, hour=13), # the one that doesn't change
-#    xmax=max(x) # the latest datetime in your dataset
-#)
+#fs = all_df.loc[0]["fs"]
+#print(fs)
+
+#dynamics = df["perc95"].to_numpy() - df["perc5"].to_numpy()
+
+#ax[0].set_xticks([])
+
+#pdf_filename = 'figure1.pdf'
+#outpdf = PdfPages(pdf_filename)
+#outpdf.savefig(fig) # ohne () saves the current figure
+#outpdf.attach_note(text, positionRect=[-100, -100, 0, 0])
+#outpdf.close()
+
+
 
 #ratio = 1.0
 #xleft, xright = ax.get_xlim()
 #ybottom, ytop = ax.get_ylim()
 #ax.set_aspect(abs((xright-xleft)/(ybottom-ytop))*ratio)
+
+# falls in subplots
+#https://stackoverflow.com/questions/38938454/python-saving-multiple-subplot-figures-to-pdf?noredirect=1&lq=1
