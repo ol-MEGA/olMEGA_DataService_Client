@@ -26,6 +26,7 @@ import scipy.signal as sig
 import matplotlib.pyplot as plt
 import json
 from datetime import datetime, timedelta
+import resource
 
 from time import strptime
 import matplotlib.dates as md
@@ -90,19 +91,14 @@ def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
 
     return cont_chunks_data, cont_chunks_time
 
+
 def find_robust_minmax(data):
     robust_min_maxval = np.nanpercentile(data[np.isfinite(data)],[2, 99])
     #if (np.isneginf(robust_min_maxval[0])):
     #    robust_min_maxval[0] = data(np.is)
     return robust_min_maxval
 
-
 startdir = './results'
-study = 'EMA2'
-variable = "varPegel"
-#variable = "OVD_percent"
-
-startdir = os.path.join(startdir,study)
 
 list_of_resultfiles = find_file_recursiv(startdir,'.json')
 all_df_list = []
@@ -111,65 +107,79 @@ for file_counter, onefilename in enumerate(list_of_resultfiles):
     with open(onefilename, 'r') as fout:
         data = json.load(fout)
 
-    #onedict = data[0]
-
     df = pd.DataFrame(data, index=list(range(len(data))))
     all_df_list.append(df)
 
 all_df = pd.concat(all_df_list)
+#global_data = all_df[variable].to_numpy()
 
-global_data = all_df[variable].to_numpy()
+#robust_min_maxval = np.percentile(global_data,[2, 99])
 
-robust_min_maxval = find_robust_minmax(global_data)
-
+allkeys = data[0].keys()
 
 subjects = all_df["subject"].unique()
 
-NUM_COLORS = len(subjects) # adjust to subjects
-cm = plt.get_cmap('gist_rainbow')
-newcolor=[cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
+newcolor= ['r', 'b']
 
-fig, ax = plt.subplots()
-for subject_counter, onesubject in enumerate(subjects):
-    data_onesubject = all_df.query(f"subject=='{onesubject}'")
-    #data_onesubject = all_df.query("subject=='EK06DI26'")
-    #data_onesubject = all_df["subject"=="EK06DI26"]
-    days = data_onesubject["day"].unique()
-    lightning = 0.7
-    for day_counter in range(len(days)):
-        one_day_data =  data_onesubject.query(f"day=={day_counter}")
+for var_count, variable in enumerate(allkeys):
+    if (var_count < 166):
+        continue
+
+    print(f'{var_count} von {len(allkeys)}')
+    print('Memory usage         : % 2.2f MB' % round(
+        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0,1))
+
+    pdf_filename = f'{variable}_EMA1_EMA_directCompariso_perSubject.pdf'
+    #text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
+    outpdf = PdfPages(pdf_filename)
+
+    for subject_counter, onesubject in enumerate(subjects):
+        fig, ax = plt.subplots()
+        data_onesubject = all_df.query(f"subject=='{onesubject}'")
+        studies = data_onesubject["studyname"].unique()
+        if (len(studies) < 2):
+            continue
         
-        cont_chunks_data, cont_chunks_time =  get_continous_chunk_data_and_time(one_day_data,variable   )
+        global_data = data_onesubject[variable].to_numpy()
 
-        lightning += 0.2
-        for chunk_counter, chunk_data in enumerate(cont_chunks_data):
-            ax.plot(cont_chunks_time[chunk_counter], chunk_data,  color = adjust_lightness(newcolor[subject_counter],lightning), alpha = 0.2)
+        robust_min_maxval = find_robust_minmax(global_data)
+
         
+        for study_counter, onestudyname in enumerate(studies):
+            data_onesubject_onestudy = data_onesubject.query(f"studyname=='{onestudyname}'")
+            #data_onesubject = all_df.query("subject=='EK06DI26'")
+            #data_onesubject = all_df["subject"=="EK06DI26"]
+            days = data_onesubject_onestudy["day"].unique()
+            lightning = 0.7
+            for day_counter in range(len(days)):
+                one_day_data =  data_onesubject_onestudy.query(f"day=={day_counter}")
+            
+                cont_chunks_data, cont_chunks_time =  get_continous_chunk_data_and_time(one_day_data,variable)
 
-ax.set_xlim(
-    xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
-    xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
-)
-ax.set_ylim(
-    ymin= np.round(0.95*robust_min_maxval[0]),
-    ymax= np.round(1.05*robust_min_maxval[1])
-)
-titletext = f'{study}, {variable}'
-ax.set_title(titletext)
+                lightning += 0.2
+                for chunk_counter, chunk_data in enumerate(cont_chunks_data):
+                    ax.plot(cont_chunks_time[chunk_counter], chunk_data,  color = adjust_lightness(newcolor[study_counter],lightning), alpha = 0.2)
+            
 
-ax.xaxis.set_major_formatter(xfmt)
+        ax.set_xlim(
+            xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+            xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+        )
+        ax.set_ylim(
+            ymin= np.round(0.95*robust_min_maxval[0]),
+            ymax= np.round(1.05*robust_min_maxval[1])
+        )
+        titletext = f'{onesubject}_{variable}'
+        ax.set_title(titletext)
 
-ax.tick_params(axis='x', rotation=45)
+        ax.xaxis.set_major_formatter(xfmt)
 
-pdf_filename = f'{variable}_AllSubjects_{study}.pdf'
-text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
-outpdf = PdfPages(pdf_filename)
-outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
-outpdf.savefig(fig) # ohne () saves the current figure
-outpdf.close()
+        ax.tick_params(axis='x', rotation=45)
+        #outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
+        outpdf.savefig(fig) # ohne () saves the current figure
+        #plt.show()
 
-plt.show()
-
+    outpdf.close()
 
 #fs = all_df.loc[0]["fs"]
 #print(fs)

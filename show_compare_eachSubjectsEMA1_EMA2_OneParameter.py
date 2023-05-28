@@ -91,6 +91,12 @@ def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
     return cont_chunks_data, cont_chunks_time
 
 
+def find_robust_minmax(data):
+    robust_min_maxval = np.nanpercentile(data[np.isfinite(data)],[2, 99])
+    #if (np.isneginf(robust_min_maxval[0])):
+    #    robust_min_maxval[0] = data(np.is)
+    return robust_min_maxval
+
 startdir = './results'
 variable = "meanPegel"
 #variable = "OVD_percent"
@@ -134,7 +140,7 @@ for subject_counter, onesubject in enumerate(subjects):
     
     global_data = data_onesubject[variable].to_numpy()
 
-    robust_min_maxval = np.percentile(global_data,[2, 99])
+    robust_min_maxval = find_robust_minmax(global_data)
 
     print(studies)
     for study_counter, onestudyname in enumerate(studies):
@@ -167,9 +173,9 @@ for subject_counter, onesubject in enumerate(subjects):
     ax.xaxis.set_major_formatter(xfmt)
 
     ax.tick_params(axis='x', rotation=45)
-
     #outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
     outpdf.savefig(fig) # ohne () saves the current figure
+    plt.show()
 
 outpdf.close()
 

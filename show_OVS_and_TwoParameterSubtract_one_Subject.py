@@ -51,13 +51,15 @@ def find_file_recursiv(start_dir, seach_string):
                 pys.append(os.path.join(p,file))
     return pys
 
-def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
+def get_continous_chunk_data_and_time_and_OVS(one_day, extract_param, min_len = 5):
 #print (one_day_data)
 
     extracted_data_oneday = one_day[extract_param].to_numpy()
+    extracted_OVS_oneday = one_day["OVD_percent"].to_numpy()
     starttime_list = one_day["startdate"].to_list()
     starttime_vec = []
     deltatime_vec = []
+    ovs_vec = []
     lastTime = datetime(year=2000, month=1,day=1, hour=0, minute=0,second=0)
     for kk, onetimestring in enumerate(starttime_list):
         dt = datetime.strptime(onetimestring,'%Y-%m-%d %H:%M:%S')
@@ -75,6 +77,7 @@ def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
         oldindex = 0
         cont_chunks_data = []
         cont_chunks_time = []
+        cont_chunks_ovs = []
         for counter, index_nr in enumerate(index):
             if index_nr - oldindex < min_len:
                 oldindex = index_nr    
@@ -83,12 +86,14 @@ def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
                 startindex = oldindex+1
                 endindex = index_nr-1
                 data = extracted_data_oneday[startindex:endindex]
+                ovs = extracted_OVS_oneday[startindex:endindex]
                 timevec = starttime_vec[startindex:endindex]
                 cont_chunks_data.append(data)
                 cont_chunks_time.append(timevec)
+                cont_chunks_ovs.append(ovs)
                 oldindex = index_nr 
 
-    return cont_chunks_data, cont_chunks_time
+    return cont_chunks_data, cont_chunks_time, cont_chunks_ovs
 
 def find_robust_minmax(data):
     robust_min_maxval = np.nanpercentile(data[np.isfinite(data)],[2, 99])
@@ -96,13 +101,13 @@ def find_robust_minmax(data):
     #    robust_min_maxval[0] = data(np.is)
     return robust_min_maxval
 
-
 startdir = './results'
-study = 'EMA2'
-variable = "varPegel"
-#variable = "OVD_percent"
+#variable = "perc5"
+#variable2 = "perc95"
+variable = "minPegel"
+variable2 = "maxPegel"
 
-startdir = os.path.join(startdir,study)
+#startdir = os.path.join(startdir,study)
 
 list_of_resultfiles = find_file_recursiv(startdir,'.json')
 all_df_list = []
@@ -117,59 +122,124 @@ for file_counter, onefilename in enumerate(list_of_resultfiles):
     all_df_list.append(df)
 
 all_df = pd.concat(all_df_list)
+#global_data = all_df[variable].to_numpy()
 
-global_data = all_df[variable].to_numpy()
-
-robust_min_maxval = find_robust_minmax(global_data)
+#robust_min_maxval = np.percentile(global_data,[2, 99])
 
 
 subjects = all_df["subject"].unique()
 
-NUM_COLORS = len(subjects) # adjust to subjects
-cm = plt.get_cmap('gist_rainbow')
-newcolor=[cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
+#newcolor= ['r', 'b']
 
-fig, ax = plt.subplots()
-for subject_counter, onesubject in enumerate(subjects):
-    data_onesubject = all_df.query(f"subject=='{onesubject}'")
-    #data_onesubject = all_df.query("subject=='EK06DI26'")
-    #data_onesubject = all_df["subject"=="EK06DI26"]
-    days = data_onesubject["day"].unique()
-    lightning = 0.7
-    for day_counter in range(len(days)):
-        one_day_data =  data_onesubject.query(f"day=={day_counter}")
-        
-        cont_chunks_data, cont_chunks_time =  get_continous_chunk_data_and_time(one_day_data,variable   )
-
-        lightning += 0.2
-        for chunk_counter, chunk_data in enumerate(cont_chunks_data):
-            ax.plot(cont_chunks_time[chunk_counter], chunk_data,  color = adjust_lightness(newcolor[subject_counter],lightning), alpha = 0.2)
-        
-
-ax.set_xlim(
-    xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
-    xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
-)
-ax.set_ylim(
-    ymin= np.round(0.95*robust_min_maxval[0]),
-    ymax= np.round(1.05*robust_min_maxval[1])
-)
-titletext = f'{study}, {variable}'
-ax.set_title(titletext)
-
-ax.xaxis.set_major_formatter(xfmt)
-
-ax.tick_params(axis='x', rotation=45)
-
-pdf_filename = f'{variable}_AllSubjects_{study}.pdf'
-text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
+pdf_filename = f'{variable2}_-_{variable}_vs_OVS_EachSubjects.pdf'
+#text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
 outpdf = PdfPages(pdf_filename)
-outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
-outpdf.savefig(fig) # ohne () saves the current figure
+NUM_COLORS = 9 # adjust to max days
+cm = plt.get_cmap('Accent')
+newcolor=[cm(1.*i/(NUM_COLORS-1)) for i in range(NUM_COLORS)]
+
+for subject_counter, onesubject in enumerate(subjects):
+    color_counter = 0
+    fig, ax = plt.subplots(nrows=4)
+    fig.set_size_inches(w=8, h=14)
+    data_onesubject = all_df.query(f"subject=='{onesubject}'")
+    studies = data_onesubject["studyname"].unique()
+    data_onesubject_onestudy = data_onesubject.query(f"studyname=='EMA1'")
+    days = data_onesubject_onestudy["day"].unique()
+
+    for day_counter in range(len(days)):
+        one_day_data =  data_onesubject_onestudy.query(f"day=={day_counter}")
+    
+        cont_chunks_data, cont_chunks_time, cont_chunks_ovs =  get_continous_chunk_data_and_time_and_OVS(one_day_data,variable)
+        cont_chunks_data2, cont_chunks_time2, cont_chunks_ovs2 =  get_continous_chunk_data_and_time_and_OVS(one_day_data,variable2)
+
+        for chunk_counter, chunk_data in enumerate(cont_chunks_data):
+            ax[0].plot(cont_chunks_time[chunk_counter], cont_chunks_ovs[chunk_counter],  color = newcolor[color_counter], alpha = 0.5)
+            ax[1].plot(cont_chunks_time[chunk_counter], cont_chunks_data2[chunk_counter]-chunk_data,  color = newcolor[color_counter], alpha = 0.5)
+        color_counter += 1
+
+
+    global_data = data_onesubject_onestudy[variable].to_numpy()
+    global_data2 = data_onesubject_onestudy[variable2].to_numpy()
+    final_data = global_data2-global_data
+    robust_min_maxval = find_robust_minmax(final_data)
+    
+    ax[0].set_xlim(
+        xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+        xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+    )
+    ax[0].set_xticks([])
+    ax[0].set_ylim(
+        ymin= 0,
+        ymax= 1)
+
+    ax[1].set_xlim(
+        xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+        xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+    )
+    titletext = f'{onesubject}_OVS[%]_EMA1'
+    ax[0].set_title(titletext)
+    ax[1].set_ylim(
+        ymin= np.round(0.95*robust_min_maxval[0]),
+        ymax= np.round(1.05*robust_min_maxval[1])
+    )
+    titletext = f'{onesubject}_{variable2}-{variable}'
+    ax[1].set_title(titletext)
+    ax[1].xaxis.set_major_formatter(xfmt)
+    ax[1].tick_params(axis='x', rotation=45)
+    if (len(studies) < 2):
+        outpdf.savefig(fig) # ohne () saves the current figure
+        continue
+
+    color_counter = 0
+    data_onesubject_onestudy = data_onesubject.query(f"studyname=='EMA2'")
+    days = data_onesubject_onestudy["day"].unique()
+
+    for day_counter in range(len(days)):
+        one_day_data =  data_onesubject_onestudy.query(f"day=={day_counter}")
+    
+        cont_chunks_data, cont_chunks_time, cont_chunks_ovs =  get_continous_chunk_data_and_time_and_OVS(one_day_data,variable)
+        cont_chunks_data2, cont_chunks_time2, cont_chunks_ovs2 =  get_continous_chunk_data_and_time_and_OVS(one_day_data,variable2)
+
+        for chunk_counter, chunk_data in enumerate(cont_chunks_data):
+            ax[2].plot(cont_chunks_time[chunk_counter], cont_chunks_ovs[chunk_counter],  color = newcolor[color_counter], alpha = 0.5)
+            ax[3].plot(cont_chunks_time[chunk_counter], cont_chunks_data2[chunk_counter]-chunk_data,  color = newcolor[color_counter], alpha = 0.5)
+        color_counter += 1
+
+    global_data = data_onesubject_onestudy[variable].to_numpy()
+    global_data2 = data_onesubject_onestudy[variable2].to_numpy()
+
+    final_data = global_data2-global_data
+    robust_min_maxval = find_robust_minmax(final_data)
+    ax[2].set_xlim(
+        xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+        xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+    )
+    ax[2].set_xticks([])
+    ax[2].set_ylim(
+        ymin= 0,
+        ymax= 1)
+
+    ax[3].set_xlim(
+        xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+        xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+    )
+    titletext = f'{onesubject}_OVS[%]_EMA2'
+    ax[2].set_title(titletext)
+    ax[3].set_ylim(
+        ymin= np.round(0.95*robust_min_maxval[0]),
+        ymax= np.round(1.05*robust_min_maxval[1])
+    )
+    titletext = f'{onesubject}_{variable2}-{variable}'
+    ax[3].set_title(titletext)
+    ax[3].xaxis.set_major_formatter(xfmt)
+    ax[3].tick_params(axis='x', rotation=45)
+    
+
+    #outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
+    outpdf.savefig(fig) # ohne () saves the current figure
+
 outpdf.close()
-
-plt.show()
-
 
 #fs = all_df.loc[0]["fs"]
 #print(fs)

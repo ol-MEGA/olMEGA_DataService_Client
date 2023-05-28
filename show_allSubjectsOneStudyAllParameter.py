@@ -30,6 +30,7 @@ from datetime import datetime, timedelta
 from time import strptime
 import matplotlib.dates as md
 from matplotlib.backends.backend_pdf import PdfPages
+import resource
 
 xfmt = md.DateFormatter('%H:%M')
 
@@ -117,58 +118,65 @@ for file_counter, onefilename in enumerate(list_of_resultfiles):
     all_df_list.append(df)
 
 all_df = pd.concat(all_df_list)
+allkeys = data[0].keys()
 
-global_data = all_df[variable].to_numpy()
+for var_count, variable in enumerate(allkeys):
+    if (var_count < 200):
+        continue
 
-robust_min_maxval = find_robust_minmax(global_data)
+    print(f'{var_count} von {len(allkeys)}')
+    print('Memory usage         : % 2.2f MB' % round(
+        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0,1))
 
+    global_data = all_df[variable].to_numpy()
+    robust_min_maxval = find_robust_minmax(global_data)
 
-subjects = all_df["subject"].unique()
+    subjects = all_df["subject"].unique()
 
-NUM_COLORS = len(subjects) # adjust to subjects
-cm = plt.get_cmap('gist_rainbow')
-newcolor=[cm(1.*i/NUM_COLORS) for i in range(NUM_COLORS)]
+    NUM_COLORS = len(subjects) # adjust to subjects
+    cm = plt.get_cmap('gist_rainbow')
+    newcolor=[cm(1.*i/(NUM_COLORS-1)) for i in range(NUM_COLORS)]
 
-fig, ax = plt.subplots()
-for subject_counter, onesubject in enumerate(subjects):
-    data_onesubject = all_df.query(f"subject=='{onesubject}'")
-    #data_onesubject = all_df.query("subject=='EK06DI26'")
-    #data_onesubject = all_df["subject"=="EK06DI26"]
-    days = data_onesubject["day"].unique()
-    lightning = 0.7
-    for day_counter in range(len(days)):
-        one_day_data =  data_onesubject.query(f"day=={day_counter}")
-        
-        cont_chunks_data, cont_chunks_time =  get_continous_chunk_data_and_time(one_day_data,variable   )
+    fig, ax = plt.subplots()
+    for subject_counter, onesubject in enumerate(subjects):
+        data_onesubject = all_df.query(f"subject=='{onesubject}'")
+        #data_onesubject = all_df.query("subject=='EK06DI26'")
+        #data_onesubject = all_df["subject"=="EK06DI26"]
+        days = data_onesubject["day"].unique()
+        lightning = 0.7
+        for day_counter in range(len(days)):
+            one_day_data =  data_onesubject.query(f"day=={day_counter}")
+            
+            cont_chunks_data, cont_chunks_time =  get_continous_chunk_data_and_time(one_day_data,variable   )
 
-        lightning += 0.2
-        for chunk_counter, chunk_data in enumerate(cont_chunks_data):
-            ax.plot(cont_chunks_time[chunk_counter], chunk_data,  color = adjust_lightness(newcolor[subject_counter],lightning), alpha = 0.2)
-        
+            lightning += 0.2
+            for chunk_counter, chunk_data in enumerate(cont_chunks_data):
+                ax.plot(cont_chunks_time[chunk_counter], chunk_data,  color = adjust_lightness(newcolor[subject_counter],lightning), alpha = 0.2)
+            
 
-ax.set_xlim(
-    xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
-    xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
-)
-ax.set_ylim(
-    ymin= np.round(0.95*robust_min_maxval[0]),
-    ymax= np.round(1.05*robust_min_maxval[1])
-)
-titletext = f'{study}, {variable}'
-ax.set_title(titletext)
+    ax.set_xlim(
+        xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
+        xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset
+    )
+    ax.set_ylim(
+        ymin= np.round(0.95*robust_min_maxval[0]),
+        ymax= np.round(1.05*robust_min_maxval[1])
+    )
+    titletext = f'{study}, {variable}'
+    ax.set_title(titletext)
 
-ax.xaxis.set_major_formatter(xfmt)
+    ax.xaxis.set_major_formatter(xfmt)
 
-ax.tick_params(axis='x', rotation=45)
+    ax.tick_params(axis='x', rotation=45)
 
-pdf_filename = f'{variable}_AllSubjects_{study}.pdf'
-text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
-outpdf = PdfPages(pdf_filename)
-outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
-outpdf.savefig(fig) # ohne () saves the current figure
-outpdf.close()
+    pdf_filename = f'{variable}_AllSubjects_{study}.pdf'
+    text = f"Study = {study}, All Subjects (different colors), {variable}, all days (different brightness per color) "
+    outpdf = PdfPages(pdf_filename)
+    outpdf.attach_note(text, positionRect=[0, 0, 20, 20])
+    outpdf.savefig(fig) # ohne () saves the current figure
+    outpdf.close()
 
-plt.show()
+    plt.show()
 
 
 #fs = all_df.loc[0]["fs"]

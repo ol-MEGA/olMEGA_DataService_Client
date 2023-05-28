@@ -90,6 +90,11 @@ def get_continous_chunk_data_and_time(one_day, extract_param, min_len = 5):
 
     return cont_chunks_data, cont_chunks_time
 
+def find_robust_minmax(data):
+    robust_min_maxval = np.nanpercentile(data[np.isfinite(data)],[2, 99])
+    #if (np.isneginf(robust_min_maxval[0])):
+    #    robust_min_maxval[0] = data(np.is)
+    return robust_min_maxval
 
 startdir = './results'
 study = 'EMA1'

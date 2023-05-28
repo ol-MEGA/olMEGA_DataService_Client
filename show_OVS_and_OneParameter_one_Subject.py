@@ -95,6 +95,11 @@ def get_continous_chunk_data_and_time_and_OVS(one_day, extract_param, min_len = 
 
     return cont_chunks_data, cont_chunks_time, cont_chunks_ovs
 
+def find_robust_minmax(data):
+    robust_min_maxval = np.nanpercentile(data[np.isfinite(data)],[2, 99])
+    #if (np.isneginf(robust_min_maxval[0])):
+    #    robust_min_maxval[0] = data(np.is)
+    return robust_min_maxval
 
 startdir = './results'
 variable = "meanPegel"
@@ -151,10 +156,8 @@ for subject_counter, onesubject in enumerate(subjects):
 
 
     global_data = data_onesubject_onestudy[variable].to_numpy()
-    robust_min_maxval = np.percentile(global_data,[2, 99])
-
-    global_data = data_onesubject_onestudy[variable].to_numpy()
-    robust_min_maxval = np.percentile(global_data,[2, 99])
+    robust_min_maxval = find_robust_minmax(global_data)
+    
     ax[0].set_xlim(
         xmin=datetime(2000, 1, 1, 6, 0), # the one that doesn't change
         xmax=datetime(2000, 1, 1, 23, 59) # the latest datetime in your dataset

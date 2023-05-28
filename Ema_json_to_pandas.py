@@ -48,6 +48,8 @@ for file_counter, onefilename in enumerate(list_of_resultfiles):
     df = pd.DataFrame(data, index=list(range(len(data))))
     all_df_list.append(df)
 
+data.keys()
+
 all_df = pd.concat(all_df_list)
 
 result_filename = os.path.join(startdir,'AllResults')

@@ -104,8 +104,8 @@ for study_count, study_name in enumerate(all_studies):
             chunks_psddata = olMQ.get_chunks_and_filenames_for_time_interval(client, participant["subject"],oneday, oneday + timedelta(hours=24),'psd')
             chunks_psddata.sort(key= lambda d: d['filename']) 
 
-            chunks_ovddata = olMQ.get_chunks_and_filenames_for_time_interval(client, participant["subject"],oneday, oneday + timedelta(hours=24),'ovd')
-            chunks_ovddata.sort(key= lambda d: d['filename']) 
+#            chunks_ovddata = olMQ.get_chunks_and_filenames_for_time_interval(client, participant["subject"],oneday, oneday + timedelta(hours=24),'ovd')
+#            chunks_ovddata.sort(key= lambda d: d['filename']) 
             #ovd_data, ovd_data_stacked, ovd_fs = olMQ.get_data_for_files_in_dict(client,chunks_ovddata, keep_files=keep_feature_files)
             print('chunks da')
             results = []
@@ -131,22 +131,14 @@ for study_count, study_name in enumerate(all_studies):
 
 
 
-                analyse_percentiles = [5, 30, 95, 99]
+                analyse_percentiles = [5, 30, 65, 95, 99]
                 analyse_modbands = [0, 0.25, 0.5, 1.0, 2.0, 4.0]
 
             
                 resultentry = {}
 
-                if (chunk_counter < len(chunks_ovddata)):
-                    help = []
-                    help.append(chunks_ovddata[chunk_counter])
-                    curOVD, fs = olMQ.get_data_for_files_in_onedict(client, help, keep_files=keep_feature_files)
-
-                    #curOVD = ovd_data_stacked[chunk_counter]
-                    OVD_percent = float(np.mean(curOVD))
-                else:
-                    curOVD = []
-                    OVD_percent = -1.0
+                curOVD = []
+                OVD_percent = -1.0
 
                 resultentry.update({"subject": participant["subject"]})
                 resultentry.update({"filename": onechunk["filename"]})
