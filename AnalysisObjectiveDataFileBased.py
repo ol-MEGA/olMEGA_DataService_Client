@@ -76,18 +76,19 @@ fmax_oktavanalysis = 4000
 #all_participants = olMQ.get_all_participants(client)
 all_studies = olMQ.get_all_studynames(client)
 
+print (all_studies)
 #study_name = 'EMA2'
 for study_count, study_name in enumerate(all_studies):
-    if (study_count < 3):
-        continue
+#    if (study_count != 0):
+#        continue
     
     print (study_name)
     #participants_EMA1 = olMQ.get_all_participants_for_study(client, study_name)
     participants_EMA = olMQ.get_all_participants_for_study(client, study_name["name"])
 
     for participant_count, participant in enumerate(participants_EMA):
-        #if (participant_count<2 and study_count<1):
-        #    continue
+        if (participant_count < 8  and study_count<1):
+            continue
 
         print(participant)
         data = olMQ.get_alltimes_objective_data_for_one_subject_one_study(client, participant["subject"], study_name["name"])
@@ -131,7 +132,7 @@ for study_count, study_name in enumerate(all_studies):
 
 
 
-                analyse_percentiles = [5, 30, 95, 99]
+                analyse_percentiles = [5, 30,65, 95, 99]
                 analyse_modbands = [0, 0.25, 0.5, 1.0, 2.0, 4.0]
 
             
@@ -178,6 +179,12 @@ for study_count, study_name in enumerate(all_studies):
 
                 meanPSD_one = (((Pxx_one+Pyy_one)*0.5*fs)*wa*wa)*magicPSDconvert # this works because of broadcasting rules in python magicPSDconvert magic number to get the correct results
                 rms_lin = np.mean((meanPSD_one), axis=1)
+                mean_PSD_time = 10*np.log10(np.mean((meanPSD_one), axis=0) +  np.finfo(float).eps)
+
+                
+
+
+                resultentry.update({"Mean_spectrum": mean_PSD_time})
                 rms_psd = 10*np.log10(rms_lin) # mean over frequency
 # HERE: Audio Analyses                 
 
